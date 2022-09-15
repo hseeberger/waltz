@@ -1,12 +1,16 @@
 [package]
-name = "waltz"
+name    = "waltz"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
 async-trait = "0"
-thiserror = "1"
-tokio = { version = "1", features = [ "full" ]}
+futures     = "0"
+thiserror   = "1"
+tokio       = { version = "1", features = [ "full" ] }
+tracing     = "0"
+uuid        = { version = "1", git = "https://github.com/uuid-rs/uuid", features = [ "v7" ] }
 
 [dev-dependencies]
-anyhow = "1"
+anyhow             = "1"
+tracing-subscriber = { version = "0", features = [ "env-filter", "json" ] }

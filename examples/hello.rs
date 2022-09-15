@@ -1,28 +1,45 @@
-use anyhow::Result;
+use anyhow::{Context, Result};
 use async_trait::async_trait;
-use std::time::Duration;
-use tokio::time;
-use waltz::{spawn, Handler};
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
+use waltz::{spawn, watch::watch, ActorContext, Handler, MsgOrSignal, StateOrStop};
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let say_hello_ref = spawn(SayHelloHandler, ());
-    say_hello_ref.tell(SayHello).await;
+    init_tracing()?;
 
-    time::sleep(Duration::from_secs(1)).await;
+    let hello = spawn(Hello, |_| ());
+    let hello_terminated = watch(&hello);
+    hello.tell(SayHello).await;
+    let _ = hello_terminated.await;
     Ok(())
 }
 
+#[derive(Debug)]
 struct SayHello;
 
-struct SayHelloHandler;
+struct Hello;
 
 #[async_trait]
-impl Handler for SayHelloHandler {
+impl Handler for Hello {
     type Msg = SayHello;
+
     type State = ();
 
-    async fn receive(&mut self, _: Self::Msg, _: Self::State) {
+    async fn receive(
+        &mut self,
+        _: &ActorContext<Self::Msg>,
+        _: MsgOrSignal<Self::Msg>,
+        _: Self::State,
+    ) -> StateOrStop<Self::State> {
         println!("Hello");
+        StateOrStop::Stop
     }
+}
+
+fn init_tracing() -> Result<()> {
+    tracing_subscriber::registry()
+        .with(EnvFilter::from_default_env())
+        .with(tracing_subscriber::fmt::layer().json())
+        .try_init()
+        .context("Cannot initialize tracing subscriber")
 }
