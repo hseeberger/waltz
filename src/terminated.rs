@@ -17,21 +17,16 @@ pub enum Error {
 
 /// Watch the given actor for termination: the returned future completes once the actor has
 /// terminated.
-pub async fn watch<A, M>(actor_ref: A) -> Result<(), Error>
-where
-    A: AsRef<ActorRef<M>>,
-    M: Debug,
-{
-    let actor_ref = actor_ref.as_ref();
+pub async fn terminated<M>(actor_ref: ActorRef<M>) -> Result<(), Error> {
+    let id = actor_ref.id();
     let (terminated_sender, terminated_receiver) = oneshot::channel::<()>();
     let _ = spawn(Watcher, |ctx| {
         ctx.watch(actor_ref);
         terminated_sender
     });
-    terminated_receiver.await.map_err(|source| Error::Watch {
-        id: actor_ref.id(),
-        source,
-    })
+    terminated_receiver
+        .await
+        .map_err(|source| Error::Watch { id, source })
 }
 
 struct Watcher;
@@ -94,7 +89,7 @@ mod tests {
     async fn test_watch_before_stop() {
         let stopper = spawn(Stopper, |_| ());
         let stopper_2 = stopper.clone();
-        let watching = task::spawn(async move { watch(stopper_2).await });
+        let watching = task::spawn(async move { terminated(stopper_2).await });
         assert!(!watching.is_finished());
 
         stopper.tell(()).await;
@@ -113,7 +108,7 @@ mod tests {
 
         time::sleep(Duration::from_millis(100)).await;
 
-        let watching = task::spawn(async move { watch(stopper).await });
+        let watching = task::spawn(async move { terminated(stopper).await });
         let result = timeout(Duration::from_millis(100), watching).await;
         assert!(result.is_ok());
         let result = result.unwrap();

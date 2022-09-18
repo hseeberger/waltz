@@ -1,7 +1,9 @@
 use anyhow::{Context, Result};
 use async_trait::async_trait;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
-use waltz::{spawn, watch::watch, ActorContext, ActorRef, Handler, MsgOrSignal, StateOrStop};
+use waltz::{
+    spawn, terminated::terminated, ActorContext, ActorRef, Handler, MsgOrSignal, StateOrStop,
+};
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -27,13 +29,10 @@ async fn main() -> Result<()> {
             .await;
     });
 
-    let echo_requester_terminated = watch(echo_requester);
-    let r = echo_requester_terminated.await;
-    println!("{r:?}");
+    let _ = terminated(echo_requester).await;
     Ok(())
 }
 
-#[derive(Debug)]
 struct EchoRequest {
     text: String,
     reply_to: ActorRef<EchoReply>,
