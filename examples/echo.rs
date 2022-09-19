@@ -2,15 +2,15 @@ use anyhow::{Context, Result};
 use async_trait::async_trait;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
 use waltz::{
-    spawn, terminated::terminated, ActorContext, ActorRef, Handler, MsgOrSignal, StateOrStop,
+    init, spawn, terminated::terminated, ActorContext, ActorRef, Handler, MsgOrSignal, StateOrStop,
 };
 
 #[tokio::main]
 async fn main() -> Result<()> {
     init_tracing()?;
 
-    let echo_requester = spawn(EchoRequester, |ctx| async { (ctx, 0) }).await;
-    let echo_replyer = spawn(EchoReplyer, |ctx| async { (ctx, ()) }).await;
+    let echo_requester = spawn(EchoRequester, init!(ctx, 0)).await;
+    let echo_replyer = spawn(EchoReplyer, init!(ctx, ())).await;
 
     echo_requester
         .tell(EchoRequest {

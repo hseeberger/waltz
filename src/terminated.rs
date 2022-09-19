@@ -1,4 +1,6 @@
-use crate::{spawn, ActorContext, ActorId, ActorRef, Handler, MsgOrSignal, NotUsed, StateOrStop};
+use crate::{
+    init, spawn, ActorContext, ActorId, ActorRef, Handler, MsgOrSignal, NotUsed, StateOrStop,
+};
 use async_trait::async_trait;
 use std::fmt::Debug;
 use thiserror::Error;
@@ -20,10 +22,13 @@ pub enum Error {
 pub async fn terminated<M>(actor_ref: ActorRef<M>) -> Result<(), Error> {
     let id = actor_ref.id();
     let (terminated_sender, terminated_receiver) = oneshot::channel::<()>();
-    let _ = spawn(Watcher, |ctx| async {
-        ctx.watch(actor_ref);
-        (ctx, terminated_sender)
-    })
+    let _ = spawn(
+        Watcher,
+        init!(ctx, {
+            ctx.watch(actor_ref);
+            terminated_sender
+        }),
+    )
     .await;
     terminated_receiver
         .await

@@ -1,13 +1,13 @@
 use anyhow::{Context, Result};
 use async_trait::async_trait;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
-use waltz::{spawn, terminated::terminated, ActorContext, Handler, MsgOrSignal, StateOrStop};
+use waltz::{init, spawn, terminated::terminated, ActorContext, Handler, MsgOrSignal, StateOrStop};
 
 #[tokio::main]
 async fn main() -> Result<()> {
     init_tracing()?;
 
-    let hello = spawn(Hello, |ctx| async { (ctx, ()) }).await;
+    let hello = spawn(Hello, init!(ctx, ())).await;
     let hello_terminated = terminated(hello.clone());
     hello.tell(SayHello).await;
     let _ = hello_terminated.await;

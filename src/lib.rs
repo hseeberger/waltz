@@ -1,6 +1,7 @@
 mod actor_context;
 mod actor_id;
 mod actor_ref;
+mod macros;
 pub mod terminated;
 
 pub use actor_context::ActorContext;
