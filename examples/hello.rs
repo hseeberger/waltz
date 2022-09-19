@@ -7,7 +7,7 @@ use waltz::{spawn, terminated::terminated, ActorContext, Handler, MsgOrSignal, S
 async fn main() -> Result<()> {
     init_tracing()?;
 
-    let hello = spawn(Hello, |_| ());
+    let hello = spawn(Hello, |ctx| async { (ctx, ()) }).await;
     let hello_terminated = terminated(hello.clone());
     hello.tell(SayHello).await;
     let _ = hello_terminated.await;

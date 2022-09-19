@@ -9,12 +9,12 @@ pub use actor_ref::ActorRef;
 
 use async_trait::async_trait;
 use futures::FutureExt;
-use std::panic::AssertUnwindSafe;
+use std::{future::Future, panic::AssertUnwindSafe};
 use tokio::{
     sync::{mpsc, watch as wtch},
     task,
 };
-use tracing::error;
+use tracing::{debug, error};
 
 /// A stateful handler for messages or signals received by an actor.
 #[async_trait]
@@ -54,31 +54,33 @@ pub enum StateOrStop<S> {
 
 /// Spawn an actor with the given handler and initial state. The returned [ActorRef] can be used
 /// to send messages to this actor.
-pub fn spawn<M, H, S, I>(handler: H, init: I) -> ActorRef<M>
+pub async fn spawn<M, H, S, I, F>(mut handler: H, init: I) -> ActorRef<M>
 where
     M: Send + 'static,
     H: Handler<Msg = M, State = S> + Send + 'static,
     S: Send + 'static,
-    I: FnOnce(&ActorContext<M>) -> S,
+    I: FnOnce(ActorContext<M>) -> F,
+    F: Future<Output = (ActorContext<M>, S)>,
 {
     let (terminated_in, terminated_out) = wtch::channel::<ActorId>(ActorId::nil());
     let (mailbox_in, mut mailbox_out) = mpsc::channel::<MsgOrSignal<M>>(42);
+
     let actor_ref = ActorRef::new(mailbox_in, terminated_out);
     let id = actor_ref.id();
+
     let ctx = ActorContext::new(actor_ref.clone());
-    let initial_state = init(&ctx);
-    let mut actor = Actor {
-        state: initial_state,
-        handler,
-    };
+    let (ctx, mut state) = init(ctx).await;
 
     task::spawn(async move {
         while let Some(msg) = mailbox_out.recv().await {
-            let receive = actor.handler.receive(&ctx, msg, actor.state);
+            let receive = handler.receive(&ctx, msg, state);
             let receive = AssertUnwindSafe(receive).catch_unwind();
             match receive.await {
-                Ok(StateOrStop::State(state)) => actor.state = state,
-                Ok(StateOrStop::Stop) => break,
+                Ok(StateOrStop::State(next_state)) => state = next_state,
+                Ok(StateOrStop::Stop) => {
+                    debug!("Stopping actor {id} as decided by handler");
+                    break;
+                }
                 Err(e) => {
                     error!("Stopping actor {id}, because handler failed: {e:?}");
                     break;
@@ -92,14 +94,6 @@ where
     });
 
     actor_ref
-}
-
-struct Actor<M, H, S>
-where
-    H: Handler<Msg = M, State = S>,
-{
-    state: S,
-    handler: H,
 }
 
 #[cfg(test)]

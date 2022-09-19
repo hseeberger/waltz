@@ -20,10 +20,11 @@ pub enum Error {
 pub async fn terminated<M>(actor_ref: ActorRef<M>) -> Result<(), Error> {
     let id = actor_ref.id();
     let (terminated_sender, terminated_receiver) = oneshot::channel::<()>();
-    let _ = spawn(Watcher, |ctx| {
+    let _ = spawn(Watcher, |ctx| async {
         ctx.watch(actor_ref);
-        terminated_sender
-    });
+        (ctx, terminated_sender)
+    })
+    .await;
     terminated_receiver
         .await
         .map_err(|source| Error::Watch { id, source })
@@ -87,7 +88,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_watch_before_stop() {
-        let stopper = spawn(Stopper, |_| ());
+        let stopper = spawn(Stopper, |ctx| async { (ctx, ()) }).await;
         let stopper_2 = stopper.clone();
         let watching = task::spawn(async move { terminated(stopper_2).await });
         assert!(!watching.is_finished());
@@ -103,7 +104,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_watch_after_stop() {
-        let stopper = spawn(Stopper, |_| ());
+        let stopper = spawn(Stopper, |ctx| async { (ctx, ()) }).await;
         stopper.tell(()).await;
 
         time::sleep(Duration::from_millis(100)).await;

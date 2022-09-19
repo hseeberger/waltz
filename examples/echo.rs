@@ -9,8 +9,8 @@ use waltz::{
 async fn main() -> Result<()> {
     init_tracing()?;
 
-    let echo_requester = spawn(EchoRequester, |_| 0);
-    let echo_replyer = spawn(EchoReplyer, |_| ());
+    let echo_requester = spawn(EchoRequester, |ctx| async { (ctx, 0) }).await;
+    let echo_replyer = spawn(EchoReplyer, |ctx| async { (ctx, ()) }).await;
 
     echo_requester
         .tell(EchoRequest {
