@@ -1,7 +1,11 @@
-use crate::{spawn, ActorRef, Handler, MsgOrSignal};
-use std::future::Future;
-use tokio::task;
-use tracing::error;
+use crate::{ActorId, ActorRef, Handler, MsgOrSignal, StateOrStop};
+use futures::FutureExt;
+use std::{future::Future, panic::AssertUnwindSafe};
+use tokio::{
+    sync::{mpsc, watch},
+    task,
+};
+use tracing::{debug, error};
 
 /// Contextual methods for a given actor, provided as handler parameter.
 pub struct ActorContext<M> {
@@ -18,7 +22,7 @@ where
     }
 
     /// Spawn a child actor with the given handler and initial state.
-    pub async fn spawn<N, H, S, I, F>(&self, handler: H, init: I) -> ActorRef<N>
+    pub async fn spawn<N, H, S, I, F>(&self, mut handler: H, init: I) -> ActorRef<N>
     where
         N: Send + 'static,
         H: Handler<Msg = N, State = S> + Send + 'static,
@@ -26,7 +30,38 @@ where
         I: FnOnce(ActorContext<N>) -> F,
         F: Future<Output = (ActorContext<N>, S)>,
     {
-        spawn(handler, init).await
+        let (terminated_in, terminated_out) = watch::channel::<ActorId>(ActorId::nil());
+        let (mailbox_in, mut mailbox_out) = mpsc::channel::<MsgOrSignal<N>>(42);
+
+        let actor_ref = ActorRef::new(mailbox_in, terminated_out);
+        let id = actor_ref.id();
+
+        let ctx = ActorContext::new(actor_ref.clone());
+        let (ctx, mut state) = init(ctx).await;
+
+        task::spawn(async move {
+            while let Some(msg) = mailbox_out.recv().await {
+                let receive = handler.receive(&ctx, msg, state);
+                let receive = AssertUnwindSafe(receive).catch_unwind();
+                match receive.await {
+                    Ok(StateOrStop::State(next_state)) => state = next_state,
+                    Ok(StateOrStop::Stop) => {
+                        debug!("Stopping actor {id} as decided by handler");
+                        break;
+                    }
+                    Err(e) => {
+                        error!("Stopping actor {id}, because handler failed: {e:?}");
+                        break;
+                    }
+                }
+            }
+
+            if let Err(e) = terminated_in.send(id) {
+                error!("Could not send Terminated signal for actor {id}: {e}");
+            };
+        });
+
+        actor_ref
     }
 
     /// Watch another actor, i.e. receive a [MsgOrSignal::Terminated] signal if that actor has

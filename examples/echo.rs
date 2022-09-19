@@ -24,9 +24,8 @@ async fn main() -> Result<()> {
                 })
                 .await;
 
-            let echo_requester_2 = echo_requester.clone();
             tokio::spawn(async move {
-                echo_requester_2
+                echo_requester
                     .tell(EchoRequest {
                         text: "Echo 2".to_string(),
                         reply_to: echo_replyer,

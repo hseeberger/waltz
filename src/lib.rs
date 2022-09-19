@@ -3,7 +3,6 @@ mod actor_id;
 mod actor_ref;
 mod actor_system;
 mod macros;
-pub mod terminated;
 
 pub use actor_context::ActorContext;
 pub use actor_id::ActorId;
@@ -11,13 +10,6 @@ pub use actor_ref::ActorRef;
 pub use actor_system::ActorSystem;
 
 use async_trait::async_trait;
-use futures::FutureExt;
-use std::{future::Future, panic::AssertUnwindSafe};
-use tokio::{
-    sync::{mpsc, watch},
-    task,
-};
-use tracing::{debug, error};
 
 /// A stateful handler for messages or signals received by an actor.
 #[async_trait]
@@ -53,48 +45,6 @@ pub enum NotUsed {}
 pub enum StateOrStop<S> {
     State(S),
     Stop,
-}
-
-pub(crate) async fn spawn<M, H, S, I, F>(mut handler: H, init: I) -> ActorRef<M>
-where
-    M: Send + 'static,
-    H: Handler<Msg = M, State = S> + Send + 'static,
-    S: Send + 'static,
-    I: FnOnce(ActorContext<M>) -> F,
-    F: Future<Output = (ActorContext<M>, S)>,
-{
-    let (terminated_in, terminated_out) = watch::channel::<ActorId>(ActorId::nil());
-    let (mailbox_in, mut mailbox_out) = mpsc::channel::<MsgOrSignal<M>>(42);
-
-    let actor_ref = ActorRef::new(mailbox_in, terminated_out);
-    let id = actor_ref.id();
-
-    let ctx = ActorContext::new(actor_ref.clone());
-    let (ctx, mut state) = init(ctx).await;
-
-    task::spawn(async move {
-        while let Some(msg) = mailbox_out.recv().await {
-            let receive = handler.receive(&ctx, msg, state);
-            let receive = AssertUnwindSafe(receive).catch_unwind();
-            match receive.await {
-                Ok(StateOrStop::State(next_state)) => state = next_state,
-                Ok(StateOrStop::Stop) => {
-                    debug!("Stopping actor {id} as decided by handler");
-                    break;
-                }
-                Err(e) => {
-                    error!("Stopping actor {id}, because handler failed: {e:?}");
-                    break;
-                }
-            }
-        }
-
-        if let Err(e) = terminated_in.send(id) {
-            error!("Could not send Terminated signal for actor {id}: {e}");
-        };
-    });
-
-    actor_ref
 }
 
 #[cfg(test)]
