@@ -1,18 +1,20 @@
 mod actor_context;
 mod actor_id;
 mod actor_ref;
+mod actor_system;
 mod macros;
 pub mod terminated;
 
 pub use actor_context::ActorContext;
 pub use actor_id::ActorId;
 pub use actor_ref::ActorRef;
+pub use actor_system::ActorSystem;
 
 use async_trait::async_trait;
 use futures::FutureExt;
 use std::{future::Future, panic::AssertUnwindSafe};
 use tokio::{
-    sync::{mpsc, watch as wtch},
+    sync::{mpsc, watch},
     task,
 };
 use tracing::{debug, error};
@@ -53,9 +55,7 @@ pub enum StateOrStop<S> {
     Stop,
 }
 
-/// Spawn an actor with the given handler and initial state. The returned [ActorRef] can be used
-/// to send messages to this actor.
-pub async fn spawn<M, H, S, I, F>(mut handler: H, init: I) -> ActorRef<M>
+pub(crate) async fn spawn<M, H, S, I, F>(mut handler: H, init: I) -> ActorRef<M>
 where
     M: Send + 'static,
     H: Handler<Msg = M, State = S> + Send + 'static,
@@ -63,7 +63,7 @@ where
     I: FnOnce(ActorContext<M>) -> F,
     F: Future<Output = (ActorContext<M>, S)>,
 {
-    let (terminated_in, terminated_out) = wtch::channel::<ActorId>(ActorId::nil());
+    let (terminated_in, terminated_out) = watch::channel::<ActorId>(ActorId::nil());
     let (mailbox_in, mut mailbox_out) = mpsc::channel::<MsgOrSignal<M>>(42);
 
     let actor_ref = ActorRef::new(mailbox_in, terminated_out);

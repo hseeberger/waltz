@@ -1,4 +1,5 @@
-use crate::{ActorRef, MsgOrSignal};
+use crate::{spawn, ActorRef, Handler, MsgOrSignal};
+use std::future::Future;
 use tokio::task;
 use tracing::error;
 
@@ -14,6 +15,18 @@ where
     /// The reference for the actor itself.
     pub fn self_ref(&self) -> &ActorRef<M> {
         &self.self_ref
+    }
+
+    /// Spawn a child actor with the given handler and initial state.
+    pub async fn spawn<N, H, S, I, F>(&self, handler: H, init: I) -> ActorRef<N>
+    where
+        N: Send + 'static,
+        H: Handler<Msg = N, State = S> + Send + 'static,
+        S: Send + 'static,
+        I: FnOnce(ActorContext<N>) -> F,
+        F: Future<Output = (ActorContext<N>, S)>,
+    {
+        spawn(handler, init).await
     }
 
     /// Watch another actor, i.e. receive a [MsgOrSignal::Terminated] signal if that actor has
