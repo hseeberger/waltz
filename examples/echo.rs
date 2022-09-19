@@ -1,3 +1,8 @@
+//! In this example we create a guardian actor which creates two actors: one – the requester –
+//! sending two echo requests to the other – the replyer. Once the requester gets two replies, it
+//! stops which leads to the guardian, which is watching the requester, to stop and therefore the
+//! actor system to terminate.
+
 use anyhow::{Context, Result};
 use async_trait::async_trait;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
@@ -12,30 +17,33 @@ async fn main() -> Result<()> {
     let system = ActorSystem::new(
         Guardian,
         init!(ctx, {
-            let echo_requester = ctx.spawn(EchoRequester, init!(ctx, 0)).await;
+            // Create the replyer actor, no particular init needed
             let echo_replyer = ctx.spawn(EchoReplyer, init!(ctx, ())).await;
 
-            ctx.watch(echo_requester.clone());
-
-            echo_requester
-                .tell(EchoRequest {
-                    text: "Echo".to_string(),
-                    reply_to: echo_replyer.clone(),
-                })
+            // Create the requester actor, send request to replyer during init
+            let echo_requester = ctx
+                .spawn(
+                    EchoRequester(echo_replyer.clone()),
+                    init!(ctx, {
+                        echo_replyer
+                            .tell(EchoRequest {
+                                text: "Echo".to_string(),
+                                reply_to: ctx.self_ref().to_owned(),
+                            })
+                            .await;
+                        0
+                    }),
+                )
                 .await;
 
-            tokio::spawn(async move {
-                echo_requester
-                    .tell(EchoRequest {
-                        text: "Echo 2".to_string(),
-                        reply_to: echo_replyer,
-                    })
-                    .await;
-            });
+            // The reqeuster is expected to stop after receiving two responses – watching it from
+            // the guardian leads to terminating the actor system
+            ctx.watch(echo_requester);
         }),
     )
     .await;
 
+    // Await actor system termination (see above)
     let _ = system.terminated().await;
     Ok(())
 }
@@ -55,6 +63,8 @@ impl Handler for Guardian {
         state: Self::State,
     ) -> StateOrStop<Self::State> {
         match msg {
+            // We are only interested in watching the termination of the only watched actor – the
+            // requester
             MsgOrSignal::Terminated(_) => StateOrStop::Stop,
             _ => StateOrStop::State(state),
         }
@@ -66,27 +76,37 @@ struct EchoRequest {
     reply_to: ActorRef<EchoReply>,
 }
 
-struct EchoRequester;
+struct EchoRequester(ActorRef<EchoRequest>);
 
 #[async_trait]
 impl Handler for EchoRequester {
-    type Msg = EchoRequest;
+    type Msg = EchoReply;
 
+    // To keep track of the number of "invocations" to be able to stop after two
     type State = u32;
 
     async fn receive(
         &mut self,
-        _: &ActorContext<Self::Msg>,
+        ctx: &ActorContext<Self::Msg>,
         msg: MsgOrSignal<Self::Msg>,
         state: Self::State,
     ) -> StateOrStop<Self::State> {
-        if let MsgOrSignal::Msg(EchoRequest { text, reply_to }) = msg {
-            reply_to.tell(EchoReply { text }).await;
-        }
-        if state < 1 {
-            StateOrStop::State(state + 1)
-        } else {
-            StateOrStop::Stop
+        match msg {
+            MsgOrSignal::Msg(EchoReply { text }) => {
+                println!("Reveived reply with text {text}");
+                if state < 1 {
+                    self.0
+                        .tell(EchoRequest {
+                            text: "Echo 2".to_string(),
+                            reply_to: ctx.self_ref().to_owned(),
+                        })
+                        .await;
+                    StateOrStop::State(state + 1)
+                } else {
+                    StateOrStop::Stop
+                }
+            }
+            _ => StateOrStop::State(state),
         }
     }
 }
@@ -100,7 +120,7 @@ struct EchoReplyer;
 
 #[async_trait]
 impl Handler for EchoReplyer {
-    type Msg = EchoReply;
+    type Msg = EchoRequest;
 
     type State = ();
 
@@ -110,8 +130,9 @@ impl Handler for EchoReplyer {
         msg: MsgOrSignal<Self::Msg>,
         state: Self::State,
     ) -> StateOrStop<Self::State> {
-        if let MsgOrSignal::Msg(EchoReply { text }) = msg {
-            println!("Reveived reply: {text}");
+        if let MsgOrSignal::Msg(EchoRequest { text, reply_to }) = msg {
+            println!("Reveived request with text {text}");
+            reply_to.tell(EchoReply { text }).await;
         }
         StateOrStop::State(state)
     }
