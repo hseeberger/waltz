@@ -2,7 +2,6 @@ mod actor_context;
 mod actor_id;
 mod actor_ref;
 mod actor_system;
-mod macros;
 
 pub use actor_context::ActorContext;
 pub use actor_id::ActorId;

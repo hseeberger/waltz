@@ -1,6 +1,6 @@
 use crate::{ActorId, ActorRef, Handler, MsgOrSignal, StateOrStop};
 use futures::FutureExt;
-use std::{future::Future, panic::AssertUnwindSafe};
+use std::{future::Future, panic::AssertUnwindSafe, sync::Arc};
 use tokio::{
     sync::{mpsc, watch},
     task,
@@ -27,8 +27,8 @@ where
         N: Send + 'static,
         H: Handler<Msg = N, State = S> + Send + 'static,
         S: Send + 'static,
-        I: FnOnce(ActorContext<N>) -> F,
-        F: Future<Output = (ActorContext<N>, S)>,
+        I: FnOnce(Arc<ActorContext<N>>) -> F,
+        F: Future<Output = S>,
     {
         let (terminated_in, terminated_out) = watch::channel::<ActorId>(ActorId::nil());
         let (mailbox_in, mut mailbox_out) = mpsc::channel::<MsgOrSignal<N>>(42);
@@ -37,7 +37,8 @@ where
         let id = actor_ref.id();
 
         let ctx = ActorContext::new(actor_ref.clone());
-        let (ctx, mut state) = init(ctx).await;
+        let ctx = Arc::new(ctx);
+        let mut state = init(ctx.clone()).await;
 
         task::spawn(async move {
             while let Some(msg) = mailbox_out.recv().await {

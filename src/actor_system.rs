@@ -1,6 +1,6 @@
 use crate::{ActorContext, ActorId, ActorRef, Handler, MsgOrSignal, NotUsed, StateOrStop};
 use async_trait::async_trait;
-use std::future::Future;
+use std::{future::Future, sync::Arc};
 use thiserror::Error;
 use tokio::{
     sync::{mpsc, oneshot, watch},
@@ -31,8 +31,8 @@ where
     where
         H: Handler<Msg = M, State = S> + Send + 'static,
         S: Send + 'static,
-        I: FnOnce(ActorContext<M>) -> F,
-        F: Future<Output = (ActorContext<M>, S)>,
+        I: FnOnce(Arc<ActorContext<M>>) -> F,
+        F: Future<Output = S>,
     {
         let (guardian, terminated) = spawn_root(handler, init).await;
         Self {
@@ -89,8 +89,8 @@ where
     M: Send + 'static,
     H: Handler<Msg = M, State = S> + Send + 'static,
     S: Send + 'static,
-    I: FnOnce(ActorContext<M>) -> F,
-    F: Future<Output = (ActorContext<M>, S)>,
+    I: FnOnce(Arc<ActorContext<M>>) -> F,
+    F: Future<Output = S>,
 {
     let (terminated_sender, terminated_receiver) = oneshot::channel::<()>();
 

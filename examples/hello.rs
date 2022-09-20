@@ -1,13 +1,13 @@
 use anyhow::{Context, Result};
 use async_trait::async_trait;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
-use waltz::{init, ActorContext, ActorSystem, Handler, MsgOrSignal, StateOrStop};
+use waltz::{ActorContext, ActorSystem, Handler, MsgOrSignal, StateOrStop};
 
 #[tokio::main]
 async fn main() -> Result<()> {
     init_tracing()?;
 
-    let system = ActorSystem::new(Guardian, init!(ctx, ())).await;
+    let system = ActorSystem::new(Guardian, |_| async { () }).await;
     system.guardian().tell(SayHello).await;
 
     let _ = system.terminated().await;

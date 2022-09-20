@@ -6,41 +6,33 @@
 use anyhow::{Context, Result};
 use async_trait::async_trait;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
-use waltz::{
-    init, ActorContext, ActorRef, ActorSystem, Handler, MsgOrSignal, NotUsed, StateOrStop,
-};
+use waltz::{ActorContext, ActorRef, ActorSystem, Handler, MsgOrSignal, NotUsed, StateOrStop};
 
 #[tokio::main]
 async fn main() -> Result<()> {
     init_tracing()?;
 
-    let system = ActorSystem::new(
-        Guardian,
-        init!(ctx, {
-            // Create the replyer actor, no particular init needed
-            let echo_replyer = ctx.spawn(EchoReplyer, init!(ctx, ())).await;
+    let system = ActorSystem::new(Guardian, |ctx| async move {
+        // Create the replyer actor, no particular init needed
+        let echo_replyer = ctx.spawn(EchoReplyer, |_| async { () }).await;
 
-            // Create the requester actor, send request to replyer during init
-            let echo_requester = ctx
-                .spawn(
-                    EchoRequester(echo_replyer.clone()),
-                    init!(ctx, {
-                        echo_replyer
-                            .tell(EchoRequest {
-                                text: "Echo".to_string(),
-                                reply_to: ctx.self_ref().to_owned(),
-                            })
-                            .await;
-                        0
-                    }),
-                )
-                .await;
+        // Create the requester actor, send request to replyer during init
+        let echo_requester = ctx
+            .spawn(EchoRequester(echo_replyer.clone()), |ctx| async move {
+                echo_replyer
+                    .tell(EchoRequest {
+                        text: "Echo".to_string(),
+                        reply_to: ctx.self_ref().to_owned(),
+                    })
+                    .await;
+                0
+            })
+            .await;
 
-            // The reqeuster is expected to stop after receiving two responses – watching it from
-            // the guardian leads to terminating the actor system
-            ctx.watch(echo_requester);
-        }),
-    )
+        // The reqeuster is expected to stop after receiving two responses – watching it from
+        // the guardian leads to terminating the actor system
+        ctx.watch(echo_requester);
+    })
     .await;
 
     // Await actor system termination (see above)
