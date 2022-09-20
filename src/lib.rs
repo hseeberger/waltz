@@ -2,11 +2,13 @@ mod actor_context;
 mod actor_id;
 mod actor_ref;
 mod actor_system;
+mod config;
 
 pub use actor_context::ActorContext;
 pub use actor_id::ActorId;
 pub use actor_ref::ActorRef;
 pub use actor_system::ActorSystem;
+pub use config::{Config, CONFIG};
 
 use async_trait::async_trait;
 

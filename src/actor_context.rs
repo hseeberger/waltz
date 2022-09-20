@@ -7,6 +7,24 @@ use tokio::{
 };
 use tracing::{debug, error};
 
+#[macro_export]
+macro_rules! spawn {
+    ($ctx:ident, $handler:expr, |$c:ident| $state:expr) => {
+        $ctx.spawn(
+            $handler,
+            $crate::CONFIG.default_mailbox_size,
+            |$c| async move { $state },
+        )
+    };
+    ($ctx:ident, $handler:expr, $state:expr) => {
+        $ctx.spawn(
+            $handler,
+            $crate::CONFIG.default_mailbox_size,
+            |_| async move { $state },
+        )
+    };
+}
+
 /// Contextual methods for a given actor, provided as handler parameter.
 pub struct ActorContext<M> {
     self_ref: ActorRef<M>,

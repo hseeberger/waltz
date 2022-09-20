@@ -6,7 +6,9 @@
 use anyhow::{Context, Result};
 use async_trait::async_trait;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
-use waltz::{ActorContext, ActorRef, ActorSystem, Handler, MsgOrSignal, NotUsed, StateOrStop};
+use waltz::{
+    spawn, ActorContext, ActorRef, ActorSystem, Handler, MsgOrSignal, NotUsed, StateOrStop,
+};
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -14,20 +16,19 @@ async fn main() -> Result<()> {
 
     let system = ActorSystem::new(Guardian, 42, |ctx| async move {
         // Create the replyer actor, no particular init needed
-        let echo_replyer = ctx.spawn(EchoReplyer, 42, |_| async { () }).await;
+        let echo_replyer = spawn!(ctx, EchoReplyer, ()).await;
 
         // Create the requester actor, send request to replyer during init
-        let echo_requester = ctx
-            .spawn(EchoRequester(echo_replyer.clone()), 42, |ctx| async move {
-                echo_replyer
-                    .tell(EchoRequest {
-                        text: "Echo".to_string(),
-                        reply_to: ctx.self_ref().to_owned(),
-                    })
-                    .await;
-                0
-            })
-            .await;
+        let echo_requester = spawn!(ctx, EchoRequester(echo_replyer.clone()), |ctx| {
+            echo_replyer
+                .tell(EchoRequest {
+                    text: "Echo".to_string(),
+                    reply_to: ctx.self_ref().to_owned(),
+                })
+                .await;
+            0
+        })
+        .await;
 
         // The reqeuster is expected to stop after receiving two responses – watching it from
         // the guardian leads to terminating the actor system
