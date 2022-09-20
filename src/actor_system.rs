@@ -25,16 +25,19 @@ impl<M> ActorSystem<M>
 where
     M: Send + 'static,
 {
-    // Create an actor system by passing the handler and state initializer for the guardian
-    // (root) actor.
-    pub async fn new<H, S, I, F>(handler: H, init: I) -> Self
+    /// Create an actor system by giving the handler, mailbox size (which must be positive) and
+    /// initial state for the guardian actor.
+    ///
+    /// # Panics
+    /// Panics if the given mailbox size is zero.
+    pub async fn new<H, S, I, F>(handler: H, mailbox_size: usize, init: I) -> Self
     where
         H: Handler<Msg = M, State = S> + Send + 'static,
         S: Send + 'static,
         I: FnOnce(Arc<ActorContext<M>>) -> F,
         F: Future<Output = S>,
     {
-        let (guardian, terminated) = spawn_root(handler, init).await;
+        let (guardian, terminated) = spawn_root(handler, mailbox_size, init).await;
         Self {
             guardian,
             terminated,
@@ -83,6 +86,7 @@ impl Handler for Root {
 
 async fn spawn_root<M, H, S, I, F>(
     guardian_handler: H,
+    mailbox_size: usize,
     guardian_init: I,
 ) -> (ActorRef<M>, oneshot::Receiver<()>)
 where
@@ -100,7 +104,9 @@ where
     let root = ActorRef::new(mailbox_in, terminated_out);
     let ctx = ActorContext::new(root);
 
-    let guardian = ctx.spawn(guardian_handler, guardian_init).await;
+    let guardian = ctx
+        .spawn(guardian_handler, mailbox_size, guardian_init)
+        .await;
     ctx.watch(guardian.clone());
 
     let mut root = Root;

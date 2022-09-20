@@ -7,7 +7,7 @@ use waltz::{ActorContext, ActorSystem, Handler, MsgOrSignal, StateOrStop};
 async fn main() -> Result<()> {
     init_tracing()?;
 
-    let system = ActorSystem::new(Guardian, |_| async { () }).await;
+    let system = ActorSystem::new(Guardian, 42, |_| async { () }).await;
     system.guardian().tell(SayHello).await;
 
     let _ = system.terminated().await;

@@ -12,13 +12,13 @@ use waltz::{ActorContext, ActorRef, ActorSystem, Handler, MsgOrSignal, NotUsed, 
 async fn main() -> Result<()> {
     init_tracing()?;
 
-    let system = ActorSystem::new(Guardian, |ctx| async move {
+    let system = ActorSystem::new(Guardian, 42, |ctx| async move {
         // Create the replyer actor, no particular init needed
-        let echo_replyer = ctx.spawn(EchoReplyer, |_| async { () }).await;
+        let echo_replyer = ctx.spawn(EchoReplyer, 42, |_| async { () }).await;
 
         // Create the requester actor, send request to replyer during init
         let echo_requester = ctx
-            .spawn(EchoRequester(echo_replyer.clone()), |ctx| async move {
+            .spawn(EchoRequester(echo_replyer.clone()), 42, |ctx| async move {
                 echo_replyer
                     .tell(EchoRequest {
                         text: "Echo".to_string(),

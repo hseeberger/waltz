@@ -21,8 +21,17 @@ where
         &self.self_ref
     }
 
-    /// Spawn a child actor with the given handler and initial state.
-    pub async fn spawn<N, H, S, I, F>(&self, mut handler: H, init: I) -> ActorRef<N>
+    /// Spawn a child actor with the given handler, mailbox size (which must be positive) and
+    /// initial state.
+    ///
+    /// # Panics
+    /// Panics if the given mailbox size is zero.
+    pub async fn spawn<N, H, S, I, F>(
+        &self,
+        mut handler: H,
+        mailbox_size: usize,
+        init: I,
+    ) -> ActorRef<N>
     where
         N: Send + 'static,
         H: Handler<Msg = N, State = S> + Send + 'static,
@@ -31,7 +40,7 @@ where
         F: Future<Output = S>,
     {
         let (terminated_in, terminated_out) = watch::channel::<ActorId>(ActorId::nil());
-        let (mailbox_in, mut mailbox_out) = mpsc::channel::<MsgOrSignal<N>>(42);
+        let (mailbox_in, mut mailbox_out) = mpsc::channel::<MsgOrSignal<N>>(mailbox_size);
 
         let actor_ref = ActorRef::new(mailbox_in, terminated_out);
         let id = actor_ref.id();
