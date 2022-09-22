@@ -86,7 +86,7 @@ impl Handler for EchoRequester {
     ) -> StateOrStop<Self::State> {
         match msg {
             MsgOrSignal::Msg(EchoReply { text }) => {
-                println!("Reveived reply with text {text}");
+                eprintln!("Reveived reply with text {text}");
                 if state < 1 {
                     self.0
                         .tell(EchoRequest {
@@ -124,7 +124,7 @@ impl Handler for EchoReplyer {
         state: Self::State,
     ) -> StateOrStop<Self::State> {
         if let MsgOrSignal::Msg(EchoRequest { text, reply_to }) = msg {
-            println!("Reveived request with text {text}");
+            eprintln!("Reveived request with text {text}");
             reply_to.tell(EchoReply { text }).await;
         }
         StateOrStop::State(state)

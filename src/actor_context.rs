@@ -2,6 +2,7 @@ use crate::{ActorId, ActorRef, Handler, MsgOrSignal, StateOrStop};
 use futures::FutureExt;
 use std::{future::Future, panic::AssertUnwindSafe, sync::Arc};
 use tokio::{
+    select,
     sync::{mpsc, watch},
     task,
 };
@@ -28,6 +29,7 @@ macro_rules! spawn {
 /// Contextual methods for a given actor, provided as handler parameter.
 pub struct ActorContext<M> {
     self_ref: ActorRef<M>,
+    stop_by_parent: watch::Receiver<bool>,
 }
 
 impl<M> ActorContext<M>
@@ -57,36 +59,85 @@ where
         I: FnOnce(Arc<ActorContext<N>>) -> F,
         F: Future<Output = S>,
     {
+        let (stop_children, stop_by_parent) = watch::channel::<bool>(false);
         let (terminated_in, terminated_out) = watch::channel::<ActorId>(ActorId::nil());
         let (mailbox_in, mut mailbox_out) = mpsc::channel::<MsgOrSignal<N>>(mailbox_size);
 
         let actor_ref = ActorRef::new(mailbox_in, terminated_out);
         let id = actor_ref.id();
 
-        let ctx = ActorContext::new(actor_ref.clone());
+        let ctx = ActorContext::new(actor_ref.clone(), stop_by_parent);
         let ctx = Arc::new(ctx);
         let mut state = init(ctx.clone()).await;
 
+        let mut stop_by_parent = self.stop_by_parent.clone();
         task::spawn(async move {
-            while let Some(msg) = mailbox_out.recv().await {
-                let receive = handler.receive(&ctx, msg, state);
-                let receive = AssertUnwindSafe(receive).catch_unwind();
-                match receive.await {
-                    Ok(StateOrStop::State(next_state)) => state = next_state,
-                    Ok(StateOrStop::Stop) => {
-                        debug!("Stopping actor {id} as decided by handler");
-                        break;
+            loop {
+                select! {
+                    biased;
+
+                    // Listen to stop signal from parent
+                    _ = stop_by_parent.changed() => {
+                        debug!(actor_id = display(id), "Received stop signal from parent");
+                        break
+                    },
+
+                    // Receive message from mailbox and invoke handler
+                    msg = mailbox_out.recv() => {
+                        match msg {
+                            Some(msg) => {
+                                let receive = handler.receive(&ctx, msg, state);
+                                let receive = AssertUnwindSafe(receive).catch_unwind();
+                                match receive.await {
+                                    Ok(StateOrStop::State(next_state)) => {
+                                        state = next_state;
+                                    }
+                                    Ok(StateOrStop::Stop) => {
+                                        debug!(actor_id = display(id), "Stopping as decided by handler");
+                                        break;
+                                    }
+                                    Err(e) => {
+                                        error!(
+                                            actor_id = display(id),
+                                            error = debug(e),
+                                            "Stopping, because handler failed"
+                                        );
+                                        break;
+                                    }
+                                }
+                            }
+                            None => break,
+                        }
                     }
-                    Err(e) => {
-                        error!("Stopping actor {id}, because handler failed: {e:?}");
-                        break;
-                    }
-                }
+                };
             }
 
+            if let Err(e) = stop_children.send(true) {
+                error!(
+                    actor_id = display(id),
+                    error = debug(e),
+                    "Cannot send stop signal to child actors"
+                );
+            }
+
+            // Dropping context to drop its `stop_by_parent`, but "save" its `terminated`, which is
+            // needed for the below termination signal sender
+            let _terminated = ctx.self_ref().terminated.clone();
+            drop(ctx);
+            // Once all child actors are terminated, their `stop_by_parent` clones are dropped, i.e.
+            // all clones, and `stop_children` is closed
+            stop_children.closed().await;
+            debug!(actor_id = display(id), "All child actors terminated");
+
+            // Send terminated signal to watchers
             if let Err(e) = terminated_in.send(id) {
-                error!("Could not send Terminated signal for actor {id}: {e}");
+                error!(
+                    actor_id = display(id),
+                    error = debug(e),
+                    "Cannot send terminated signal"
+                );
             };
+            debug!(actor_id = display(id), "Terminated");
         });
 
         actor_ref
@@ -96,19 +147,30 @@ where
     /// stopped.
     pub fn watch<N>(&self, other: ActorRef<N>) {
         let self_ref = self.self_ref().clone();
-        let mut terminated = other.terminated;
+        let id = self_ref.id();
+        let other_id = other.id();
+        let mut other_terminated = other.terminated;
+
         task::spawn(async move {
-            match terminated.changed().await {
+            match other_terminated.changed().await {
                 Ok(_) => {
-                    let id = *terminated.borrow();
+                    let id = *other_terminated.borrow();
                     let _ = self_ref.mailbox.send(MsgOrSignal::Terminated(id)).await;
                 }
-                Err(e) => error!("Cannot receive Terminated signal: {e}"),
+                Err(e) => error!(
+                    actor_id = display(id),
+                    other_id = display(other_id),
+                    error = debug(e),
+                    "Cannot receive terminated signal"
+                ),
             }
         });
     }
 
-    pub(crate) fn new(self_ref: ActorRef<M>) -> Self {
-        Self { self_ref }
+    pub(crate) fn new(self_ref: ActorRef<M>, stop_by_parent: watch::Receiver<bool>) -> Self {
+        Self {
+            self_ref,
+            stop_by_parent,
+        }
     }
 }

@@ -1,26 +1,37 @@
 use anyhow::{Context, Result};
 use async_trait::async_trait;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
-use waltz::{ActorContext, ActorSystem, Handler, MsgOrSignal, StateOrStop};
+use waltz::{spawn, ActorContext, ActorSystem, Handler, MsgOrSignal, NotUsed, StateOrStop};
 
 #[tokio::main]
 async fn main() -> Result<()> {
     init_tracing()?;
 
-    let system = ActorSystem::new(Guardian, 42, |_| async { () }).await;
-    system.guardian().tell(SayHello).await;
+    let system = ActorSystem::new(Guardian, 42, |ctx| async move {
+        spawn!(ctx, Noop, |ctx| {
+            spawn!(ctx, Noop, |ctx| {
+                spawn!(ctx, Noop, ()).await;
+                ()
+            })
+            .await;
+            ()
+        })
+        .await;
+        ()
+    })
+    .await;
+
+    system.guardian().tell(()).await;
 
     let _ = system.terminated().await;
     Ok(())
 }
 
-struct SayHello;
-
 struct Guardian;
 
 #[async_trait]
 impl Handler for Guardian {
-    type Msg = SayHello;
+    type Msg = ();
 
     type State = ();
 
@@ -30,8 +41,25 @@ impl Handler for Guardian {
         _: MsgOrSignal<Self::Msg>,
         _: Self::State,
     ) -> StateOrStop<Self::State> {
-        eprintln!("Hello");
         StateOrStop::Stop
+    }
+}
+
+struct Noop;
+
+#[async_trait]
+impl Handler for Noop {
+    type Msg = NotUsed;
+
+    type State = ();
+
+    async fn receive(
+        &mut self,
+        _: &ActorContext<Self::Msg>,
+        _: MsgOrSignal<Self::Msg>,
+        state: Self::State,
+    ) -> StateOrStop<Self::State> {
+        StateOrStop::State(state)
     }
 }
 

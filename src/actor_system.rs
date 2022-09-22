@@ -71,12 +71,12 @@ impl Handler for Root {
     ) -> StateOrStop<Self::State> {
         match msg {
             MsgOrSignal::Terminated(_) => {
-                debug!("Stoping because guardian has terminated");
+                debug!("Stoping root actor, because guardian has terminated");
                 let _ = state.send(());
                 StateOrStop::Stop
             }
             MsgOrSignal::Msg(_) => {
-                error!("Received unexpected message");
+                error!("Root actor received unexpected message");
                 let _ = state.send(());
                 StateOrStop::Stop
             }
@@ -96,13 +96,14 @@ where
     I: FnOnce(Arc<ActorContext<M>>) -> F,
     F: Future<Output = S>,
 {
-    let (terminated_sender, terminated_receiver) = oneshot::channel::<()>();
+    let (system_terminated_sender, system_terminated_receiver) = oneshot::channel::<()>();
 
+    let (stop_children, stop_by_parent) = watch::channel::<bool>(false);
     let (_, terminated_out) = watch::channel::<ActorId>(ActorId::nil());
     let (mailbox_in, mut mailbox_out) = mpsc::channel::<MsgOrSignal<NotUsed>>(1);
 
     let root = ActorRef::new(mailbox_in, terminated_out);
-    let ctx = ActorContext::new(root);
+    let ctx = ActorContext::new(root, stop_by_parent);
 
     let guardian = ctx
         .spawn(guardian_handler, mailbox_size, guardian_init)
@@ -112,15 +113,12 @@ where
     let mut root = Root;
     task::spawn(async move {
         if let Some(msg) = mailbox_out.recv().await {
-            let receive = root.receive(&ctx, msg, terminated_sender);
-            match receive.await {
-                StateOrStop::Stop => {
-                    debug!("Stopping root actor");
-                }
-                _other => error!("Unexpected receive result"),
-            }
+            let receive = root.receive(&ctx, msg, system_terminated_sender);
+            let _ = receive.await;
         }
+        // This must not be dropped before, even though never used, else the receivers fail
+        drop(stop_children)
     });
 
-    (guardian, terminated_receiver)
+    (guardian, system_terminated_receiver)
 }
