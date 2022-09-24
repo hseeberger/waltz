@@ -8,6 +8,24 @@ use tokio::{
 };
 use tracing::{debug, error};
 
+#[macro_export]
+macro_rules! system {
+    ($handler:expr, |$c:ident| $state:expr) => {
+        ActorSystem::new(
+            $handler,
+            $crate::CONFIG.default_mailbox_size,
+            |$c| async move { $state },
+        )
+    };
+    ($handler:expr, $state:expr) => {
+        ActorSystem::new(
+            $handler,
+            $crate::CONFIG.default_mailbox_size,
+            |_| async move { $state },
+        )
+    };
+}
+
 #[derive(Debug, Error)]
 /// Errors for this module.
 pub enum Error {

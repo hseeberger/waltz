@@ -7,14 +7,14 @@ use anyhow::{Context, Result};
 use async_trait::async_trait;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
 use waltz::{
-    spawn, ActorContext, ActorRef, ActorSystem, Handler, MsgOrSignal, NotUsed, StateOrStop,
+    spawn, system, ActorContext, ActorRef, ActorSystem, Handler, MsgOrSignal, NotUsed, StateOrStop,
 };
 
 #[tokio::main]
 async fn main() -> Result<()> {
     init_tracing()?;
 
-    let system = ActorSystem::new(Guardian, 42, |ctx| async move {
+    let system = system!(Guardian, |ctx| {
         // Create the replyer actor, no particular init needed
         let echo_replyer = spawn!(ctx, EchoReplyer, ()).await;
 
