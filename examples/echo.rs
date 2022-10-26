@@ -7,7 +7,7 @@ use anyhow::{Context, Result};
 use async_trait::async_trait;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
 use waltz::{
-    spawn, system, ActorContext, ActorRef, ActorSystem, Handler, MsgOrSignal, NotUsed, StateOrStop,
+    spawn, system, ActorContext, ActorRef, ActorSystem, Handler, MsgOrSignal, NoMsg, StateOrStop,
 };
 
 #[tokio::main]
@@ -45,7 +45,7 @@ struct Guardian;
 
 #[async_trait]
 impl Handler for Guardian {
-    type Msg = NotUsed;
+    type Msg = NoMsg;
 
     type State = ();
 
@@ -75,7 +75,7 @@ struct EchoRequester(ActorRef<EchoRequest>);
 impl Handler for EchoRequester {
     type Msg = EchoReply;
 
-    // To keep track of the number of "invocations" to be able to stop after two
+    // Keep track of the number of "invocations" to be able to stop after two
     type State = u32;
 
     async fn receive(

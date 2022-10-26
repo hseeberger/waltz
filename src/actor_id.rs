@@ -1,5 +1,5 @@
 use std::fmt::{self, Display};
-use uuid::{Timestamp, Uuid};
+use uuid::Uuid;
 
 /// A unique actor ID.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -7,7 +7,7 @@ pub struct ActorId(Uuid);
 
 impl ActorId {
     pub(crate) fn new() -> Self {
-        Self(Uuid::new_v7(Timestamp::now()))
+        Self(Uuid::now_v7())
     }
 
     pub(crate) const fn nil() -> Self {

@@ -1,7 +1,7 @@
 use anyhow::{Context, Result};
 use async_trait::async_trait;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
-use waltz::{spawn, system, ActorContext, ActorSystem, Handler, MsgOrSignal, NotUsed, StateOrStop};
+use waltz::{spawn, system, ActorContext, ActorSystem, Handler, MsgOrSignal, NoMsg, StateOrStop};
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -49,7 +49,7 @@ struct Noop;
 
 #[async_trait]
 impl Handler for Noop {
-    type Msg = NotUsed;
+    type Msg = NoMsg;
 
     type State = ();
 

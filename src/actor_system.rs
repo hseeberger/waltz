@@ -1,4 +1,4 @@
-use crate::{ActorContext, ActorId, ActorRef, Handler, MsgOrSignal, NotUsed, StateOrStop};
+use crate::{ActorContext, ActorId, ActorRef, Handler, MsgOrSignal, NoMsg, StateOrStop};
 use async_trait::async_trait;
 use std::{future::Future, sync::Arc};
 use thiserror::Error;
@@ -77,7 +77,7 @@ struct Root;
 
 #[async_trait]
 impl Handler for Root {
-    type Msg = NotUsed;
+    type Msg = NoMsg;
 
     type State = oneshot::Sender<()>;
 
@@ -118,7 +118,7 @@ where
 
     let (stop_children, stop_by_parent) = watch::channel::<bool>(false);
     let (_, terminated_out) = watch::channel::<ActorId>(ActorId::nil());
-    let (mailbox_in, mut mailbox_out) = mpsc::channel::<MsgOrSignal<NotUsed>>(1);
+    let (mailbox_in, mut mailbox_out) = mpsc::channel::<MsgOrSignal<NoMsg>>(1);
 
     let root = ActorRef::new(mailbox_in, terminated_out);
     let ctx = ActorContext::new(root, stop_by_parent);

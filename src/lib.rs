@@ -31,7 +31,7 @@ pub trait Handler {
 }
 
 /// Handlers can receive messages or signals. Messages are represented via the `Msg` variant and
-/// signals as the other variants.
+/// signals – currently only [MsgOrSignal::Terminated] – as the other variants.
 pub enum MsgOrSignal<M> {
     Msg(M),
     Terminated(ActorId),
@@ -39,7 +39,7 @@ pub enum MsgOrSignal<M> {
 
 /// Type which cannot be instantiated to  be used for actors which don't react to messages.
 #[derive(Clone, Copy)]
-pub enum NotUsed {}
+pub enum NoMsg {}
 
 /// Handlers either return the new state or their intent to stop. State is represented via the
 /// `State` variant, stopping via the `Stop` variant.
