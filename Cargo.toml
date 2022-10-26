@@ -2,6 +2,13 @@
 name    = "waltz"
 version = "0.1.0"
 edition = "2021"
+description   = "Experimental actor framework"
+authors       = [ "Heiko Seeberger <git@heikoseeberger.de>" ]
+license       = "Apache-2.0"
+readme        = "README.md"
+homepage      = "https://github.com/hseeberger/waltz"
+repository    = "https://github.com/hseeberger/waltz"
+documentation = "https://github.com/hseeberger/waltz"
 
 [dependencies]
 async-trait = "0"
