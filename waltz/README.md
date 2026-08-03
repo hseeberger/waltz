@@ -15,8 +15,8 @@
 [comparison-url]: https://hseeberger.github.io/waltz/comparison/
 
 An actor framework for Rust, built on [Tokio](https://tokio.rs): typed messages, supervision
-trees and death watch with an ordering guarantee. Inspired by Carl Hewitt's
-[Actor Model](https://en.wikipedia.org/wiki/Actor_model) and strongly influenced by
+trees, death watch with an ordering guarantee and optional remoting over QUIC. Inspired by Carl
+Hewitt's [Actor Model](https://en.wikipedia.org/wiki/Actor_model) and strongly influenced by
 [Akka](https://akka.io).
 
 waltz is under active development: the API is unstable and the crate is not yet published to
@@ -43,6 +43,10 @@ waltz is under active development: the API is unstable and the crate is not yet 
   terminates it.
 - **Bounded or unbounded mailboxes.** Bounded mailboxes drop messages beyond capacity as dead
   letters, but terminated signals are never dropped.
+- **Optional remoting (`remote` feature).** `ActorRef` becomes serializable, so message types
+  embed reference fields like `reply_to: ActorRef<Reply>` and work unchanged wherever their
+  counterpart lives; actors on other nodes are told and watched through the very same API, over
+  QUIC with TLS. With the feature off, none of its dependencies are pulled in.
 
 ## Getting started
 
@@ -103,10 +107,20 @@ struct Greet(String);
 `ActorSystem::with_config` and `ActorContext::spawn_with_config` to choose a mailbox capacity or
 supervision strategy.
 
+For remoting, enable the `remote` feature:
+
+```toml
+waltz = { git = "https://github.com/hseeberger/waltz", features = [ "remote" ] }
+```
+
+For development and tests there is also `remote-dev`, which adds `QuicTransport::dev`, a
+transport that does not verify certificates. It is a separate feature so it cannot end up in a
+production build which does not ask for it.
+
 ## Core concepts
 
 A short tour; for the full picture, top-down with links into the implementation, see
-[docs/actors.md](../docs/actors.md).
+[docs/actors.md](../docs/actors.md), and [docs/remoting.md](../docs/remoting.md) for remoting.
 
 ### Actors and state
 
@@ -137,7 +151,8 @@ resolves exactly when the entire tree has terminated.
 `ActorRef::tell` is non-blocking, fire-and-forget and at-most-once. If the actor has terminated, or
 its bounded mailbox is full, the message is dropped and logged as a dead letter. Delivery does not
 imply processing: even a delivered message may go unprocessed if the actor stops before getting to
-it.
+it. The contract holds unchanged for an actor on another node, where an unreachable node, a full
+outbound queue and an undecodable payload are dead letters as well.
 
 ### Watch
 
@@ -150,6 +165,10 @@ Watching an actor that has already terminated delivers the signal right away, an
 signals are delivered even when a bounded mailbox is full. `ActorContext::unwatch` stops
 watching: after it returns, no terminated signal for that actor is received, even if the signal
 was already enqueued.
+
+Actors on other nodes are watched the same way. A signal travelling from there keeps the ordering
+guarantee, but one synthesized because the node was declared dead can only promise that no further
+message from that actor will ever arrive; see [docs/remoting.md](../docs/remoting.md).
 
 ### Supervision
 
@@ -227,6 +246,24 @@ max backoff 1s below min backoff 10s for key `supervision_strategy.backoff`
   ```shell
   RUST_LOG=waltz=debug cargo run --quiet -p waltz --example scatter_gather
   ```
+
+- [`remote_scatter_gather`](examples/remote_scatter_gather.rs): the same scatter-gather across two
+  nodes, where the workers live on another node and reply through a serialized
+  `reply_to: ActorRef<Partial>`. It starts the second node as a child process, so one command runs
+  both:
+
+  ```shell
+  RUST_LOG=waltz=debug cargo run --quiet -p waltz --features remote-dev --example remote_scatter_gather
+  ```
+
+## Status and roadmap
+
+waltz is under active development; expect the API to change without notice.
+
+The open items on the remoting side are listed under the limitations in
+[docs/remoting.md](../docs/remoting.md): per-target QUIC streams, so that a large message no
+longer delays unrelated frames behind it, and discovery, so that the first reference need not be
+exchanged out of band.
 
 ## License
 

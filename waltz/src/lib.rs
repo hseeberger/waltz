@@ -1,3 +1,5 @@
+#![cfg_attr(docsrs, feature(doc_cfg))]
+
 //! An actor framework.
 //!
 //! An actor is created by implementing [Actor]: [Actor::init] creates its initial state and
@@ -20,8 +22,16 @@
 //! terminated actor has delivered to the watcher, hence receiving it proves that the watcher has
 //! seen every message from that actor it will ever see: each arrived before the signal or was
 //! dropped as a dead letter.
+//!
+//! The `remote` feature adds remoting in the [remote] module: [ActorRef] becomes serializable and
+//! actors on different nodes message and watch each other through the very same API. Without that
+//! feature waltz is purely local and pulls in none of the remoting dependencies.
 
 #![warn(missing_docs)]
+
+#[cfg(feature = "remote")]
+#[cfg_attr(docsrs, doc(cfg(feature = "remote")))]
+pub mod remote;
 
 mod actor;
 mod actor_config;

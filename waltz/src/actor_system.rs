@@ -1,6 +1,7 @@
 use crate::{
     Actor, ActorConfig, ActorId, ActorRef,
     actor_context::spawn,
+    actor_ref::WatchTarget,
     mailbox::{ActorTerminated, TerminatedSink, Watcher},
     sync::lock,
 };
@@ -90,9 +91,12 @@ where
         terminated_tx: Mutex::new(Some(terminated_tx)),
         _stopping_tx: stopping_tx,
     });
-    let registration = root
-        .watcher_registry()
-        .add(Watcher::new(ActorId::new(), sink.clone()));
+    let registration = match root.watch_target() {
+        WatchTarget::Local(registry) => registry.add(Watcher::new(ActorId::new(), sink.clone())),
+
+        #[cfg(feature = "remote")]
+        WatchTarget::Remote(_) => unreachable!("the root actor is local"),
+    };
     if registration.is_err() {
         sink.send_terminated(root.actor_id())
             .expect("a sink whose registration failed was never signaled");
