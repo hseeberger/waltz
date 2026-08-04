@@ -15,8 +15,8 @@
 [comparison-url]: https://hseeberger.github.io/waltz/comparison/
 
 An actor framework for Rust, built on [Tokio](https://tokio.rs): typed messages, supervision
-trees and death watch with an ordering guarantee. Inspired by Carl Hewitt's
-[Actor Model](https://en.wikipedia.org/wiki/Actor_model) and strongly influenced by
+trees, death watch with an ordering guarantee and optional remoting over QUIC. Inspired by Carl
+Hewitt's [Actor Model](https://en.wikipedia.org/wiki/Actor_model) and strongly influenced by
 [Akka](https://akka.io).
 
 waltz is under active development: the API is unstable and the crate is not yet published to
@@ -36,10 +36,13 @@ waltz is under active development: the API is unstable and the crate is not yet 
 How waltz works under the hood, top-down with links into the implementation:
 
 - [docs/actors.md](docs/actors.md): the core, from the `Actor` trait down to the run loop.
+- [docs/remoting.md](docs/remoting.md): the `remote` feature, in particular which of the core
+  guarantees carry over the network and which weaken.
 
 ## Development
 
-The [justfile](justfile) defines the usual tasks; `just all` runs check, fmt, lint, test and doc.
+The [justfile](justfile) defines the usual tasks; `just all` runs check, fmt, lint, test and doc,
+each across the `serde` and `remote` feature combinations.
 Formatting uses nightly rustfmt options, which `just fmt` takes care of.
 
 Messaging throughput benchmarks (criterion) run with `just bench`. On CI every pull request is
@@ -49,6 +52,11 @@ benchmarked against its merge base and the comparison posted as a comment, and e
 The benchmarks against kameo and ractor run with `just comparison`; they are excluded from
 per-pull-request CI and published to the [comparison dashboard][comparison-url] on version tags
 and manual runs.
+
+The open items on the remoting side are listed under the limitations in
+[docs/remoting.md](docs/remoting.md): per-target QUIC streams, so that a large message no longer
+delays unrelated frames behind it, and discovery, so that the first reference need not be
+exchanged out of band.
 
 ## License
 

@@ -12,26 +12,54 @@ publish       = { workspace = true }
 
 [package.metadata.docs.rs]
 all-features = true
+rustdoc-args = [ "--cfg", "docsrs" ]
 
 [features]
-serde = [ "dep:humantime-serde", "dep:serde" ]
+remote = [
+    "dep:erased-serde",
+    "dep:postcard",
+    "dep:quinn",
+    "dep:rustls",
+    "dep:serde",
+    "dep:trait-variant",
+    "uuid/serde",
+]
+# Enables `QuicTransport::dev`, which does not verify certificates: never enable in production!
+remote-dev = [ "remote", "dep:rcgen" ]
+serde      = [ "dep:humantime-serde", "dep:serde" ]
 
 [dependencies]
 derive_more     = { workspace = true, features = [ "debug", "display", "into" ] }
+erased-serde    = { workspace = true, optional = true }
 flume           = { workspace = true, features = [ "async" ] }
 humantime-serde = { workspace = true, optional = true }
 log             = { workspace = true, features = [ "kv" ] }
+postcard        = { workspace = true, features = [ "use-std" ], optional = true }
+quinn           = { workspace = true, features = [ "log", "runtime-tokio", "rustls-ring" ], optional = true }
+rcgen           = { workspace = true, features = [ "crypto", "ring" ], optional = true }
+rustls          = { workspace = true, features = [ "ring", "std" ], optional = true }
 serde           = { workspace = true, features = [ "derive" ], optional = true }
 thiserror       = { workspace = true }
 tokio           = { workspace = true, features = [ "macros", "rt", "sync", "time" ] }
+trait-variant   = { workspace = true, optional = true }
 uuid            = { workspace = true, features = [ "v7" ] }
 
 [dev-dependencies]
-anyhow    = { workspace = true }
-criterion = { workspace = true, features = [ "async_tokio" ] }
-logforth  = { workspace = true, features = [ "starter-log" ] }
-tokio     = { workspace = true, features = [ "macros", "rt-multi-thread", "test-util", "time" ] }
+anyhow      = { workspace = true }
+criterion   = { workspace = true, features = [ "async_tokio" ] }
+derive_more = { workspace = true, features = [ "debug", "deref", "deref_mut" ] }
+logforth    = { workspace = true, features = [ "starter-log" ] }
+tokio       = { workspace = true, features = [ "fs", "macros", "process", "rt-multi-thread", "test-util", "time" ] }
 
 [[bench]]
 name    = "messaging"
 harness = false
+
+[[example]]
+name              = "remote_scatter_gather"
+required-features = [ "remote-dev" ]
+
+[[test]]
+name              = "remoting"
+harness           = false
+required-features = [ "remote-dev" ]
