@@ -1,0 +1,168 @@
+{
+  "metadata": {
+    "tag": "manual-30887144044",
+    "commit": "05df542a00f7bb5d9375159fd3347c21fb5a480e",
+    "date": "2026-08-04T07:22:21Z",
+    "os": "Linux 6.17.0-1020-azure",
+    "cpu": "AMD EPYC 7763 64-Core Processor",
+    "cores": 4,
+    "rustc": "rustc 1.97.0 (2d8144b78 2026-07-07)",
+    "versions": {
+      "kameo": "0.22.2",
+      "ractor": "0.16.1",
+      "waltz": "0.1.0"
+    }
+  },
+  "measurements": [
+    {
+      "group": "fan_out",
+      "framework": "kameo",
+      "parameter": "8",
+      "elements": 100000,
+      "mean_ns": 9417078.641305603,
+      "lower_ns": 9382724.299737828,
+      "upper_ns": 9452319.342160031,
+      "elements_per_second": 10619004.450209815
+    },
+    {
+      "group": "fan_out",
+      "framework": "ractor",
+      "parameter": "8",
+      "elements": 100000,
+      "mean_ns": 6641169.696992908,
+      "lower_ns": 6612924.531196505,
+      "upper_ns": 6678235.088131609,
+      "elements_per_second": 15057588.43133907
+    },
+    {
+      "group": "fan_out",
+      "framework": "waltz",
+      "parameter": "8",
+      "elements": 100000,
+      "mean_ns": 3800386.532876744,
+      "lower_ns": 3774432.3943060064,
+      "upper_ns": 3825569.165877635,
+      "elements_per_second": 26313112.92546443
+    },
+    {
+      "group": "fan_out",
+      "framework": "kameo",
+      "parameter": "32",
+      "elements": 100000,
+      "mean_ns": 8584822.043280397,
+      "lower_ns": 8506922.2613543,
+      "upper_ns": 8671588.579598686,
+      "elements_per_second": 11648465.104558932
+    },
+    {
+      "group": "fan_out",
+      "framework": "ractor",
+      "parameter": "32",
+      "elements": 100000,
+      "mean_ns": 6535105.65226172,
+      "lower_ns": 6499476.463987083,
+      "upper_ns": 6573783.084375223,
+      "elements_per_second": 15301971.432610461
+    },
+    {
+      "group": "fan_out",
+      "framework": "waltz",
+      "parameter": "32",
+      "elements": 100000,
+      "mean_ns": 3377160.043599372,
+      "lower_ns": 3357394.9351045303,
+      "upper_ns": 3397378.354998246,
+      "elements_per_second": 29610678.41292477
+    },
+    {
+      "group": "flood",
+      "framework": "kameo",
+      "parameter": null,
+      "elements": 100000,
+      "mean_ns": 26772861.32,
+      "lower_ns": 26230161.865500003,
+      "upper_ns": 27339080.9,
+      "elements_per_second": 3735125.611146295
+    },
+    {
+      "group": "flood",
+      "framework": "ractor",
+      "parameter": null,
+      "elements": 100000,
+      "mean_ns": 19113554.97166667,
+      "lower_ns": 18415651.226249997,
+      "upper_ns": 19823052.520541664,
+      "elements_per_second": 5231889.104263275
+    },
+    {
+      "group": "flood",
+      "framework": "waltz",
+      "parameter": null,
+      "elements": 100000,
+      "mean_ns": 10790261.85916159,
+      "lower_ns": 10552673.879786028,
+      "upper_ns": 11011305.73410251,
+      "elements_per_second": 9267615.68025283
+    },
+    {
+      "group": "ping_pong",
+      "framework": "kameo",
+      "parameter": "1",
+      "elements": 2000,
+      "mean_ns": 1002919.035506236,
+      "lower_ns": 990772.938412623,
+      "upper_ns": 1018378.3468929592,
+      "elements_per_second": 1994178.9209240354
+    },
+    {
+      "group": "ping_pong",
+      "framework": "ractor",
+      "parameter": "1",
+      "elements": 2000,
+      "mean_ns": 938150.7664706073,
+      "lower_ns": 933009.5881480018,
+      "upper_ns": 943170.2797663164,
+      "elements_per_second": 2131853.505299738
+    },
+    {
+      "group": "ping_pong",
+      "framework": "waltz",
+      "parameter": "1",
+      "elements": 2000,
+      "mean_ns": 680202.5412829355,
+      "lower_ns": 674836.0439174325,
+      "upper_ns": 685565.9982249971,
+      "elements_per_second": 2940300.687833044
+    },
+    {
+      "group": "ping_pong",
+      "framework": "kameo",
+      "parameter": "8",
+      "elements": 16000,
+      "mean_ns": 2043989.540282902,
+      "lower_ns": 2036892.1747909596,
+      "upper_ns": 2052253.786201478,
+      "elements_per_second": 7827828.706885404
+    },
+    {
+      "group": "ping_pong",
+      "framework": "ractor",
+      "parameter": "8",
+      "elements": 16000,
+      "mean_ns": 2099891.5430847425,
+      "lower_ns": 2093781.7745347049,
+      "upper_ns": 2106232.066885218,
+      "elements_per_second": 7619441.133848269
+    },
+    {
+      "group": "ping_pong",
+      "framework": "waltz",
+      "parameter": "8",
+      "elements": 16000,
+      "mean_ns": 1518489.0021548036,
+      "lower_ns": 1512186.2722149163,
+      "upper_ns": 1526027.3694577692,
+      "elements_per_second": 10536790.175822997
+    }
+  ]
+}

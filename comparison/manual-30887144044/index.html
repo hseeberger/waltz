@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>waltz comparison benchmarks (manual-30887144044)</title>
+<style>
+:root { color-scheme: light dark; --fg: #111; --muted: #555; --bg: #fff; --line: #ddd; --bar: #4f7cff; --warn-bg: #fff8e1; --warn-line: #e6c200; }
+@media (prefers-color-scheme: dark) {
+  :root { --fg: #e6e6e6; --muted: #a0a0a0; --bg: #14161a; --line: #333; --bar: #6d92ff; --warn-bg: #2a2413; --warn-line: #7a6a1a; }
+}
+* { box-sizing: border-box; }
+body { margin: 0 auto; padding: 2rem 1rem; max-width: 60rem; background: var(--bg); color: var(--fg);
+  font: 16px/1.6 system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
+h1 { font-size: 1.6rem; margin: 0 0 .25rem; }
+h2 { font-size: 1.15rem; margin: 2.5rem 0 .75rem; }
+a { color: inherit; }
+.sub { color: var(--muted); margin: 0 0 1.5rem; }
+.meta { display: grid; grid-template-columns: max-content 1fr; gap: .25rem 1rem; padding: 1rem;
+  border: 1px solid var(--line); border-radius: 8px; font-size: .9rem; }
+.meta dt { color: var(--muted); }
+.meta dd { margin: 0; overflow-wrap: anywhere; }
+.caveats { margin: 1.5rem 0; padding: 1rem 1rem 1rem 1.25rem; background: var(--warn-bg);
+  border-left: 4px solid var(--warn-line); border-radius: 4px; font-size: .92rem; }
+.caveats h2 { margin: 0 0 .5rem; font-size: 1rem; }
+.caveats ol { margin: 0; padding-left: 1.1rem; }
+.caveats li { margin: .4rem 0; }
+.scroll { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: .92rem; }
+th, td { text-align: left; padding: .45rem .6rem; border-bottom: 1px solid var(--line); white-space: nowrap; }
+th { color: var(--muted); font-weight: 600; }
+td.num { text-align: right; font-variant-numeric: tabular-nums; }
+.bar { display: block; height: .55rem; background: var(--bar); border-radius: 3px; min-width: 2px; }
+td.barcell { width: 40%; }
+footer { margin-top: 3rem; color: var(--muted); font-size: .85rem; }
+</style>
+</head>
+<body>
+<h1>waltz comparison benchmarks</h1>
+<p class="sub">Messaging throughput of <strong>waltz</strong> against kameo and ractor, higher is better.</p>
+
+<dl class="meta">
+<dt>Tag</dt><dd>manual-30887144044</dd>
+<dt>Commit</dt><dd>05df542a00f7bb5d9375159fd3347c21fb5a480e</dd>
+<dt>Date</dt><dd>2026-08-04T07:22:21Z</dd>
+<dt>Versions</dt><dd>kameo 0.22.2, ractor 0.16.1, waltz 0.1.0</dd>
+<dt>CPU</dt><dd>AMD EPYC 7763 64-Core Processor (4 cores)</dd>
+<dt>OS</dt><dd>Linux 6.17.0-1020-azure</dd>
+<dt>Toolchain</dt><dd>rustc 1.97.0 (2d8144b78 2026-07-07)</dd>
+</dl>
+
+<div class="caveats">
+<h2>Read this before drawing conclusions</h2>
+<ol>
+<li><strong>waltz's <code>receive</code> is synchronous; kameo's and ractor's handlers are <code>async fn</code>.</strong>
+waltz therefore avoids allocating and polling a future per message, but cannot await inside <code>receive</code>.
+This is a capability difference, not only a speed difference, and it favours waltz on exactly these microbenchmarks.</li>
+<li><strong>waltz's mailbox is statically typed; the others erase message types</strong>, costing an allocation
+and a dynamic dispatch per message that waltz does not pay.</li>
+<li><strong>Competitors are configured for speed, not defaults.</strong> kameo runs without <code>tracing</code>
+and ractor without <code>message_span_propogation</code>, both of which waltz has no equivalent of. This biases
+the setup in the competitors' favour.</li>
+<li><strong>Messaging microbenchmarks only.</strong> Nothing here speaks to supervision, distribution,
+ergonomics, memory use or production readiness. kameo and ractor are mature, feature-rich frameworks; waltz is
+under active development and does far less.</li>
+<li><strong>On CI these run on a shared 2-core runner</strong>, so absolute figures are not representative of real
+deployments. Only the relative comparison within a single run is meaningful.</li>
+<li><strong>Written and run by waltz's maintainer.</strong> The full methodology and benchmark source are in the
+repository; corrections are welcome.</li>
+</ol>
+</div>
+<h2>fan_out (8)</h2>
+<div class="scroll"><table>
+<thead><tr><th>Framework</th><th class="num">Time</th><th class="num">Throughput</th><th class="num">vs fastest</th><th></th></tr></thead>
+<tbody><tr><td>kameo</td><td class="num">9.417 ms</td><td class="num">10.62 M/s</td><td class="num">0.40x</td><td class="barcell"><span class="bar" style="width:40.4%"></span></td></tr><tr><td>ractor</td><td class="num">6.641 ms</td><td class="num">15.06 M/s</td><td class="num">0.57x</td><td class="barcell"><span class="bar" style="width:57.2%"></span></td></tr><tr><td>waltz</td><td class="num">3.800 ms</td><td class="num">26.31 M/s</td><td class="num">1.00x</td><td class="barcell"><span class="bar" style="width:100.0%"></span></td></tr></tbody>
+</table></div>
+<h2>fan_out (32)</h2>
+<div class="scroll"><table>
+<thead><tr><th>Framework</th><th class="num">Time</th><th class="num">Throughput</th><th class="num">vs fastest</th><th></th></tr></thead>
+<tbody><tr><td>kameo</td><td class="num">8.585 ms</td><td class="num">11.65 M/s</td><td class="num">0.39x</td><td class="barcell"><span class="bar" style="width:39.3%"></span></td></tr><tr><td>ractor</td><td class="num">6.535 ms</td><td class="num">15.30 M/s</td><td class="num">0.52x</td><td class="barcell"><span class="bar" style="width:51.7%"></span></td></tr><tr><td>waltz</td><td class="num">3.377 ms</td><td class="num">29.61 M/s</td><td class="num">1.00x</td><td class="barcell"><span class="bar" style="width:100.0%"></span></td></tr></tbody>
+</table></div>
+<h2>flood</h2>
+<div class="scroll"><table>
+<thead><tr><th>Framework</th><th class="num">Time</th><th class="num">Throughput</th><th class="num">vs fastest</th><th></th></tr></thead>
+<tbody><tr><td>kameo</td><td class="num">26.773 ms</td><td class="num">3.74 M/s</td><td class="num">0.40x</td><td class="barcell"><span class="bar" style="width:40.3%"></span></td></tr><tr><td>ractor</td><td class="num">19.114 ms</td><td class="num">5.23 M/s</td><td class="num">0.56x</td><td class="barcell"><span class="bar" style="width:56.5%"></span></td></tr><tr><td>waltz</td><td class="num">10.790 ms</td><td class="num">9.27 M/s</td><td class="num">1.00x</td><td class="barcell"><span class="bar" style="width:100.0%"></span></td></tr></tbody>
+</table></div>
+<h2>ping_pong (1)</h2>
+<div class="scroll"><table>
+<thead><tr><th>Framework</th><th class="num">Time</th><th class="num">Throughput</th><th class="num">vs fastest</th><th></th></tr></thead>
+<tbody><tr><td>kameo</td><td class="num">1.003 ms</td><td class="num">1.99 M/s</td><td class="num">0.68x</td><td class="barcell"><span class="bar" style="width:67.8%"></span></td></tr><tr><td>ractor</td><td class="num">0.938 ms</td><td class="num">2.13 M/s</td><td class="num">0.73x</td><td class="barcell"><span class="bar" style="width:72.5%"></span></td></tr><tr><td>waltz</td><td class="num">0.680 ms</td><td class="num">2.94 M/s</td><td class="num">1.00x</td><td class="barcell"><span class="bar" style="width:100.0%"></span></td></tr></tbody>
+</table></div>
+<h2>ping_pong (8)</h2>
+<div class="scroll"><table>
+<thead><tr><th>Framework</th><th class="num">Time</th><th class="num">Throughput</th><th class="num">vs fastest</th><th></th></tr></thead>
+<tbody><tr><td>kameo</td><td class="num">2.044 ms</td><td class="num">7.83 M/s</td><td class="num">0.74x</td><td class="barcell"><span class="bar" style="width:74.3%"></span></td></tr><tr><td>ractor</td><td class="num">2.100 ms</td><td class="num">7.62 M/s</td><td class="num">0.72x</td><td class="barcell"><span class="bar" style="width:72.3%"></span></td></tr><tr><td>waltz</td><td class="num">1.518 ms</td><td class="num">10.54 M/s</td><td class="num">1.00x</td><td class="barcell"><span class="bar" style="width:100.0%"></span></td></tr></tbody>
+</table></div>
+
+<footer>
+Generated from criterion results. See the
+<a href="../../dev/bench/">waltz regression benchmarks</a> for throughput over time.
+</footer>
+</body>
+</html>
