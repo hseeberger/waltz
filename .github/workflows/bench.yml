@@ -1,0 +1,126 @@
+name: Bench
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+concurrency:
+  group: bench-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: false
+
+jobs:
+  toolchain:
+    name: Setup Rust toolchain
+    runs-on: ubuntu-latest
+    outputs:
+      stable: ${{ steps.set_toolchain.outputs.stable }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Output toolchain
+        id: set_toolchain
+        run: |
+          stable=$(grep channel rust-toolchain.toml | sed -r 's/channel = "(.*)"/\1/')
+          echo "stable=$stable" | tee -a "$GITHUB_OUTPUT"
+
+  bench-pr:
+    name: Compare against merge base
+    runs-on: ubuntu-latest
+    needs: toolchain
+    if: github.event_name != 'push'
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # master
+        with:
+          toolchain: ${{ needs.toolchain.outputs.stable }}
+
+      - name: Install just
+        uses: taiki-e/install-action@41049aa56687c35e0afa74eed4f09cec4f9afabf # v2.85.2
+        with:
+          tool: just
+
+      - name: Setup Rust cache
+        uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+
+      - name: Benchmark merge base
+        run: |
+          rustup override set ${{ needs.toolchain.outputs.stable }}
+          base=$(git merge-base origin/main HEAD)
+          git checkout --detach "$base"
+          git checkout "$GITHUB_SHA" -- justfile
+          just bench-save main
+
+      - name: Benchmark PR head
+        run: |
+          git checkout -f --detach "$GITHUB_SHA"
+          just bench-compare main
+
+      - name: Report
+        run: |
+          just bench-report | tee report.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Comment on PR
+        continue-on-error: true
+        uses: marocchino/sticky-pull-request-comment@5770ad5eb8f42dd2c4f34da00c94c5381e49af88 # v3.0.5
+        with:
+          header: bench
+          path: report.md
+
+  bench-main:
+    name: Track on main
+    runs-on: ubuntu-latest
+    needs: toolchain
+    if: github.event_name != 'pull_request'
+    permissions:
+      contents: write
+    concurrency:
+      group: gh-pages
+      cancel-in-progress: false
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # master
+        with:
+          toolchain: ${{ needs.toolchain.outputs.stable }}
+
+      - name: Install just
+        uses: taiki-e/install-action@41049aa56687c35e0afa74eed4f09cec4f9afabf # v2.85.2
+        with:
+          tool: just
+
+      - name: Setup Rust cache
+        uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+
+      - name: Benchmark
+        run: |
+          rustup override set ${{ needs.toolchain.outputs.stable }}
+          just bench-bencher | tee bench-output.txt
+
+      - name: Store result
+        uses: benchmark-action/github-action-benchmark@52576c92bccf6ac60c8223ec7eb2565637cae9ba # v1.22.1
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          tool: cargo
+          output-file-path: bench-output.txt
+          gh-pages-branch: gh-pages
+          benchmark-data-dir-path: dev/bench
+          auto-push: true
+          alert-threshold: "150%"
+          comment-on-alert: true
+          fail-on-alert: false

@@ -1,0 +1,151 @@
+name: Comparison
+
+on:
+  push:
+    tags:
+      - v*
+  pull_request:
+    branches:
+      - main
+    paths:
+      - waltz-comparison/**
+      - .github/workflows/comparison.yml
+  workflow_dispatch:
+
+jobs:
+  toolchain:
+    name: Setup Rust toolchain
+    runs-on: ubuntu-latest
+    outputs:
+      stable: ${{ steps.set_toolchain.outputs.stable }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Output toolchain
+        id: set_toolchain
+        run: |
+          stable=$(grep channel rust-toolchain.toml | sed -r 's/channel = "(.*)"/\1/')
+          echo "stable=$stable" | tee -a "$GITHUB_OUTPUT"
+
+  check:
+    name: Check comparison crate
+    runs-on: ubuntu-latest
+    needs: toolchain
+    if: github.event_name == 'pull_request'
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # master
+        with:
+          toolchain: ${{ needs.toolchain.outputs.stable }}
+          components: clippy
+
+      - name: Install just
+        uses: taiki-e/install-action@41049aa56687c35e0afa74eed4f09cec4f9afabf # v2.85.2
+        with:
+          tool: just
+
+      - name: Setup Rust cache
+        uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+
+      - name: just comparison-check comparison-lint
+        run: |
+          rustup override set ${{ needs.toolchain.outputs.stable }}
+          just comparison-check
+          just comparison-lint
+
+  publish:
+    name: Publish comparison
+    runs-on: ubuntu-latest
+    needs: toolchain
+    if: github.event_name != 'pull_request'
+    permissions:
+      contents: write
+    concurrency:
+      group: gh-pages
+      cancel-in-progress: false
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@2c7215f132e9ebf062739d9130488b56d53c060c # master
+        with:
+          toolchain: ${{ needs.toolchain.outputs.stable }}
+
+      - name: Install just
+        uses: taiki-e/install-action@41049aa56687c35e0afa74eed4f09cec4f9afabf # v2.85.2
+        with:
+          tool: just
+
+      - name: Setup Rust cache
+        uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+
+      - name: Resolve tag
+        id: resolve
+        run: |
+          if [ "$GITHUB_REF_TYPE" = tag ]; then
+            tag="$GITHUB_REF_NAME"
+          else
+            tag="manual-$GITHUB_RUN_ID"
+          fi
+          echo "tag=$tag" | tee -a "$GITHUB_OUTPUT"
+
+      - name: Benchmark
+        run: |
+          rustup override set ${{ needs.toolchain.outputs.stable }}
+          just comparison
+
+      - name: Report
+        run: |
+          just comparison-report ${{ steps.resolve.outputs.tag }}
+
+      - name: Publish to gh-pages
+        env:
+          TAG: ${{ steps.resolve.outputs.tag }}
+        run: |
+          set -euo pipefail
+
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git fetch origin gh-pages
+          git worktree add ../gh-pages origin/gh-pages
+
+          mkdir -p "../gh-pages/comparison/$TAG"
+          cp target/comparison-report/index.html "../gh-pages/comparison/$TAG/"
+          cp target/comparison-report/results.json "../gh-pages/comparison/$TAG/"
+
+          {
+            printf '<!doctype html>\n<html lang="en">\n<head>\n'
+            printf '<meta charset="utf-8">\n<title>waltz comparison benchmarks</title>\n'
+            printf '</head>\n<body>\n<h1>waltz comparison benchmarks</h1>\n<ul>\n'
+            find ../gh-pages/comparison -mindepth 1 -maxdepth 1 -type d -printf '%f\n' \
+              | sort -Vr \
+              | while read -r dir; do
+                  printf '<li><a href="./%s/">%s</a></li>\n' "$dir" "$dir"
+                done
+            printf '</ul>\n<p><a href="../dev/bench/">Regression benchmarks over time</a></p>\n'
+            printf '</body>\n</html>\n'
+          } > ../gh-pages/comparison/index.html
+
+          git -C ../gh-pages add comparison
+          if git -C ../gh-pages diff --cached --quiet; then
+            echo "no comparison changes to publish"
+          else
+            git -C ../gh-pages commit -m "add comparison benchmarks for $TAG"
+            git -C ../gh-pages push origin HEAD:gh-pages
+          fi
+
+      - name: Upload report
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: comparison-${{ steps.resolve.outputs.tag }}
+          path: target/comparison-report

@@ -1,0 +1,29 @@
+[workspace]
+resolver = "3"
+members  = [ "waltz", "waltz-comparison" ]
+
+[workspace.package]
+version       = "0.1.0"
+edition       = "2024"
+license       = "Apache-2.0"
+homepage      = "https://github.com/hseeberger/waltz"
+repository    = "https://github.com/hseeberger/waltz"
+documentation = "https://github.com/hseeberger/waltz"
+publish       = false
+
+[workspace.dependencies]
+anyhow          = { version = "1.0" }
+criterion       = { version = "0.8" }
+derive_more     = { version = "2.1" }
+flume           = { version = "0.12", default-features = false }
+humantime-serde = { version = "1.1" }
+kameo           = { version = "0.22", default-features = false }
+log             = { version = "0.4" }
+logforth        = { version = "0.30" }
+ractor          = { version = "0.16", default-features = false }
+serde           = { version = "1.0" }
+serde_json      = { version = "1.0" }
+thiserror       = { version = "2.0" }
+tokio           = { version = "1" }
+uuid            = { version = "1.24" }
+waltz           = { path = "waltz" }

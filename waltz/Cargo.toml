@@ -1,0 +1,37 @@
+[package]
+name          = "waltz"
+description   = "An actor framework for Rust"
+version       = { workspace = true }
+edition       = { workspace = true }
+license       = { workspace = true }
+readme        = "README.md"
+homepage      = { workspace = true }
+repository    = { workspace = true }
+documentation = { workspace = true }
+publish       = { workspace = true }
+
+[package.metadata.docs.rs]
+all-features = true
+
+[features]
+serde = [ "dep:humantime-serde", "dep:serde" ]
+
+[dependencies]
+derive_more     = { workspace = true, features = [ "debug", "display", "into" ] }
+flume           = { workspace = true, features = [ "async" ] }
+humantime-serde = { workspace = true, optional = true }
+log             = { workspace = true, features = [ "kv" ] }
+serde           = { workspace = true, features = [ "derive" ], optional = true }
+thiserror       = { workspace = true }
+tokio           = { workspace = true, features = [ "macros", "rt", "sync", "time" ] }
+uuid            = { workspace = true, features = [ "v7" ] }
+
+[dev-dependencies]
+anyhow    = { workspace = true }
+criterion = { workspace = true, features = [ "async_tokio" ] }
+logforth  = { workspace = true, features = [ "starter-log" ] }
+tokio     = { workspace = true, features = [ "macros", "rt-multi-thread", "test-util", "time" ] }
+
+[[bench]]
+name    = "messaging"
+harness = false

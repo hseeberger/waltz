@@ -1,0 +1,27 @@
+[package]
+name          = "waltz-comparison"
+description   = "Benchmarks comparing waltz against other actor frameworks"
+version       = { workspace = true }
+edition       = { workspace = true }
+license       = { workspace = true }
+readme        = "README.md"
+homepage      = { workspace = true }
+repository    = { workspace = true }
+documentation = { workspace = true }
+publish       = { workspace = true }
+
+[dependencies]
+anyhow     = { workspace = true }
+serde      = { workspace = true, features = [ "derive" ] }
+serde_json = { workspace = true }
+
+[dev-dependencies]
+criterion = { workspace = true, features = [ "async_tokio" ] }
+kameo     = { workspace = true }
+ractor    = { workspace = true, features = [ "tokio_runtime" ] }
+tokio     = { workspace = true, features = [ "macros", "rt-multi-thread" ] }
+waltz     = { workspace = true }
+
+[[bench]]
+name    = "frameworks"
+harness = false
