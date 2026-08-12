@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1786481129905,
+  "lastUpdate": 1786554711498,
   "repoUrl": "https://github.com/hseeberger/waltz",
   "entries": {
     "Benchmark": [
@@ -119,6 +119,66 @@ window.BENCHMARK_DATA = {
             "name": "fan_out/workers/16",
             "value": 3496353,
             "range": "± 19516",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "git@heikoseeberger.de",
+            "name": "Heiko Seeberger",
+            "username": "hseeberger"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "02b5aef63ab08d435f7c413cbebcce78d1c3ed56",
+          "message": "Merge pull request #6 from hseeberger/fix/restart-parent-stop\n\nfix: honor parent stop arriving during a restart's stop_children",
+          "timestamp": "2026-08-12T19:09:15+02:00",
+          "tree_id": "50179a72b4143818212566f935abcb808bc09d67",
+          "url": "https://github.com/hseeberger/waltz/commit/02b5aef63ab08d435f7c413cbebcce78d1c3ed56"
+        },
+        "date": 1786554710592,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "flood/unbounded",
+            "value": 9339576,
+            "range": "± 107836",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "flood/bounded",
+            "value": 11063125,
+            "range": "± 47616",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ping_pong/pairs/1",
+            "value": 705375,
+            "range": "± 11334",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ping_pong/pairs/4",
+            "value": 844162,
+            "range": "± 35871",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "fan_out/workers/4",
+            "value": 4581980,
+            "range": "± 130623",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "fan_out/workers/16",
+            "value": 3452113,
+            "range": "± 21623",
             "unit": "ns/iter"
           }
         ]
