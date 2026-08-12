@@ -330,13 +330,17 @@ impl Display for PanicPayload<'_> {
     }
 }
 
-/// The state must already have been dropped by the caller; the watchers are signaled last, since
-/// a terminated signal must prove that the actor's destructors have run.
+/// The state must already have been dropped by the caller; the channel is dropped first, so
+/// senders observe the termination while the children still stop; the watchers are signaled last,
+/// since a terminated signal must prove that the actor's destructors have run.
 async fn terminate<A>(actor: A, mut context: ActorContext<A::Message>, mailbox: Mailbox<A::Message>)
 where
     A: Actor,
 {
     let actor_id = context.self_ref().actor_id();
+
+    let (incoming_rx, closed_mailbox) = mailbox.split();
+    drop_containing_panic(actor_id, "mailbox failed to drop", incoming_rx);
 
     for registry in context.take_watched().into_values() {
         registry.remove(actor_id);
@@ -348,7 +352,7 @@ where
 
     drop_containing_panic(actor_id, "actor failed to drop", actor);
 
-    for watcher in mailbox.take_watchers() {
+    for watcher in closed_mailbox.take_watchers() {
         if let Err(error) = watcher.send_terminated(actor_id) {
             debug!(
                 actor_id:%,
@@ -358,7 +362,6 @@ where
         }
     }
 
-    drop_containing_panic(actor_id, "mailbox failed to drop", mailbox);
     debug!(actor_id:%; "terminated");
 }
 
