@@ -62,8 +62,20 @@ impl<M> Mailbox<M> {
         Some(incoming)
     }
 
+    /// Dropping the returned receiver makes every send fail as terminated, while the
+    /// [ClosedMailbox] keeps registration open until [ClosedMailbox::take_watchers].
+    pub(crate) fn split(self) -> (Receiver<Incoming<M>>, ClosedMailbox) {
+        (self.incoming_rx, ClosedMailbox(self.watcher_registry))
+    }
+}
+
+/// The watcher half of a split [Mailbox]: only its owner reaches [WatcherRegistry::take], so a
+/// sender side registry clone can never close registration.
+pub(crate) struct ClosedMailbox(WatcherRegistry);
+
+impl ClosedMailbox {
     pub(crate) fn take_watchers(&self) -> Vec<Watcher> {
-        self.watcher_registry.take()
+        self.0.take()
     }
 }
 
@@ -236,6 +248,27 @@ mod tests {
         ));
     }
 
+    /// Splitting the mailbox already fails sends as terminated while registration stays open, so
+    /// termination can reject senders early yet signal its watchers last.
+    #[test]
+    fn splitting_disconnects_senders_but_keeps_registration_open() {
+        let (mailbox_handle, mailbox) =
+            make_mailbox::<()>(MailboxCapacity::Bounded(NonZeroUsize::MIN));
+        assert!(mailbox_handle.try_send_message(()).is_ok());
+
+        let (incoming_rx, closed_mailbox) = mailbox.split();
+        drop(incoming_rx);
+
+        assert!(matches!(
+            mailbox_handle.try_send_message(()),
+            Err(SendError::ActorTerminated(_))
+        ));
+
+        let watcher = Watcher::new(ActorId::new(), mailbox_handle.terminated_sink());
+        assert!(mailbox_handle.watcher_registry().add(watcher).is_ok());
+        assert_eq!(closed_mailbox.take_watchers().len(), 1);
+    }
+
     #[tokio::test]
     async fn receiving_a_message_frees_capacity() {
         let (mailbox_handle, mailbox) =
@@ -269,7 +302,7 @@ mod tests {
         let watcher = Watcher::new(ActorId::new(), mailbox_handle.terminated_sink());
         assert!(clone.watcher_registry().add(watcher).is_ok());
 
-        assert_eq!(mailbox.take_watchers().len(), 1);
+        assert_eq!(mailbox.split().1.take_watchers().len(), 1);
     }
 
     /// A send to a terminated actor reports the termination rather than a full mailbox, also when
@@ -340,7 +373,7 @@ mod tests {
             );
         }
 
-        assert_eq!(mailbox.take_watchers().len(), 1);
+        assert_eq!(mailbox.split().1.take_watchers().len(), 1);
     }
 
     /// Removing a watcher deregisters it, so no terminated signal is sent to it and no reference
@@ -354,7 +387,7 @@ mod tests {
         assert!(mailbox_handle.watcher_registry().add(watcher).is_ok());
         mailbox_handle.watcher_registry().remove(watcher_id);
 
-        assert!(mailbox.take_watchers().is_empty());
+        assert!(mailbox.split().1.take_watchers().is_empty());
     }
 
     /// Removing after registration has been closed has no effect, in particular it must not
@@ -366,7 +399,7 @@ mod tests {
         let watcher_id = ActorId::new();
         let watcher = Watcher::new(watcher_id, mailbox_handle.terminated_sink());
         assert!(mailbox_handle.watcher_registry().add(watcher).is_ok());
-        assert_eq!(mailbox.take_watchers().len(), 1);
+        assert_eq!(mailbox.split().1.take_watchers().len(), 1);
 
         mailbox_handle.watcher_registry().remove(watcher_id);
 
@@ -398,12 +431,14 @@ mod tests {
     fn taking_watchers_closes_registration() {
         let (mailbox_handle, mailbox) = make_mailbox::<()>(MailboxCapacity::Unbounded);
 
+        let (_incoming_rx, closed_mailbox) = mailbox.split();
+
         let watcher = Watcher::new(ActorId::new(), mailbox_handle.terminated_sink());
         assert!(mailbox_handle.watcher_registry().add(watcher).is_ok());
-        assert_eq!(mailbox.take_watchers().len(), 1);
+        assert_eq!(closed_mailbox.take_watchers().len(), 1);
 
         let watcher = Watcher::new(ActorId::new(), mailbox_handle.terminated_sink());
         assert!(mailbox_handle.watcher_registry().add(watcher).is_err());
-        assert!(mailbox.take_watchers().is_empty());
+        assert!(closed_mailbox.take_watchers().is_empty());
     }
 }
