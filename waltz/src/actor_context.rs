@@ -134,7 +134,7 @@ impl<M> ActorContext<M> {
 }
 
 pub(crate) fn spawn<A>(
-    mut parent_stopping_rx: watch::Receiver<()>,
+    parent_stopping_rx: watch::Receiver<()>,
     actor: A,
     config: ActorConfig,
 ) -> ActorRef<A::Message>
@@ -151,8 +151,8 @@ where
         async move {
             let mut context = ActorContext::new(self_ref);
 
-            let parent_stopping_rx_clone = parent_stopping_rx.clone();
-            let mut stopped_by_parent = pin!(parent_stopping_rx.changed());
+            let mut rx = parent_stopping_rx.clone();
+            let mut stopped_by_parent = pin!(rx.changed());
 
             let mut restarts = 0;
 
@@ -221,14 +221,22 @@ where
 
                     Restart::NotConfigured => break,
                 };
-                if parent_stopping_rx_clone.has_changed().unwrap_or(true) {
+
+                if parent_stopping_rx.has_changed().unwrap_or(true) {
+                    debug!(actor_id:%; "stopping, because parent stopped this actor");
                     break;
                 }
                 debug!(actor_id:%, restarts, delay:?; "restarting");
 
                 context.stop_children().await;
 
-                if !delay.is_zero() {
+                // Again check if stopped by parent to avoid finding out after restarting.
+                if delay.is_zero() {
+                    if parent_stopping_rx.has_changed().unwrap_or(true) {
+                        debug!(actor_id:%; "stopping, because parent stopped this actor");
+                        break;
+                    }
+                } else {
                     select! {
                         biased;
 

@@ -1,7 +1,7 @@
 use std::{
     num::NonZeroU32,
     sync::{
-        Arc,
+        Arc, Mutex,
         atomic::{AtomicUsize, Ordering::SeqCst},
     },
     time::Duration,
@@ -9,10 +9,10 @@ use std::{
 use thiserror::Error;
 use tokio::{
     sync::mpsc,
-    time::{Instant, timeout},
+    time::{Instant, sleep, timeout},
 };
 use waltz::{
-    Actor, ActorConfig, ActorContext, ActorSystem, Backoff, Control, Incoming, Nothing,
+    Actor, ActorConfig, ActorContext, ActorRef, ActorSystem, Backoff, Control, Incoming, Nothing,
     RestartPolicy, SupervisionStrategy,
 };
 
@@ -216,6 +216,63 @@ async fn parent_stop_cancels_backoff() {
         .await
         .expect("actor system did not terminate while a child was backing off")
         .expect("watching the root actor failed");
+}
+
+/// The parent stopping while a zero-backoff restart stops the failed actor's children must be
+/// honored once they are stopped, without another `init` cycle: the restarting actor is held in
+/// `stop_children` by a child blocked in its `init`, the parent is stopped meanwhile, and once the
+/// child is unblocked the actor must terminate without reinitializing. A stop landing before the
+/// restart's first probe passes vacuously, but the actor enters `stop_children` without an await
+/// point after acking its failure, so the raced window is hit reliably.
+#[tokio::test(flavor = "multi_thread")]
+async fn parent_stop_during_restart_stop_children_skips_reinit() {
+    let inits = Arc::new(AtomicUsize::new(0));
+    let (middle_tx, mut middle_rx) = mpsc::channel(1);
+    let (failed_tx, mut failed_rx) = mpsc::channel(1);
+    let (blocked_tx, mut blocked_rx) = mpsc::channel(1);
+    let (unblock_tx, unblock_rx) = std::sync::mpsc::channel();
+
+    let middle = RestartingMiddle {
+        inits: inits.clone(),
+        failed_tx,
+        blocked_tx,
+        unblock_rx: Mutex::new(Some(unblock_rx)),
+    };
+    let system = ActorSystem::new(StoppingRoot {
+        middle: Mutex::new(Some(middle)),
+        middle_tx,
+    });
+
+    let middle_ref = timeout(TIMEOUT, middle_rx.recv())
+        .await
+        .expect("root did not spawn the restarting actor")
+        .expect("middle channel closed");
+    timeout(TIMEOUT, blocked_rx.recv())
+        .await
+        .expect("child did not start blocking in `init`")
+        .expect("blocked channel closed");
+
+    middle_ref.tell(());
+    timeout(TIMEOUT, failed_rx.recv())
+        .await
+        .expect("restarting actor did not fail")
+        .expect("failed channel closed");
+
+    system.root().tell(());
+    sleep(Duration::from_millis(100)).await;
+    unblock_tx
+        .send(())
+        .expect("child dropped the unblock channel");
+
+    timeout(TIMEOUT, system.terminated())
+        .await
+        .expect("actor system did not terminate")
+        .expect("watching the root actor failed");
+    assert_eq!(
+        inits.load(SeqCst),
+        1,
+        "the restart reinitialized under a parent stop"
+    );
 }
 
 async fn count_after_failure(
@@ -451,6 +508,114 @@ impl Actor for BackoffParent {
         _: Self::State,
     ) -> Result<Control<Self::State>, Self::Error> {
         Ok(Control::Stop)
+    }
+}
+
+/// Spawn the restarting actor with a zero-backoff restart, hand its reference to the test and stop
+/// on the first message.
+struct StoppingRoot {
+    middle: Mutex<Option<RestartingMiddle>>,
+    middle_tx: mpsc::Sender<ActorRef<()>>,
+}
+
+impl Actor for StoppingRoot {
+    type Message = ();
+    type State = ();
+    type Error = Boom;
+
+    fn init(&self, context: &ActorContext<Self::Message>) -> Result<Self::State, Self::Error> {
+        if let Some(middle) = self
+            .middle
+            .lock()
+            .expect("middle mutex is not poisoned")
+            .take()
+        {
+            let middle_ref =
+                context.spawn_with_config(middle, config(restart_strategy(1, Duration::ZERO)));
+            let _ = self.middle_tx.try_send(middle_ref);
+        }
+
+        Ok(())
+    }
+
+    fn receive(
+        &self,
+        _: &ActorContext<Self::Message>,
+        _: Incoming<Self::Message>,
+        _: Self::State,
+    ) -> Result<Control<Self::State>, Self::Error> {
+        Ok(Control::Stop)
+    }
+}
+
+/// Spawn a blocking child on the first `init` only, count `init` calls and fail on the first
+/// message, acking right before returning the error.
+struct RestartingMiddle {
+    inits: Arc<AtomicUsize>,
+    failed_tx: mpsc::Sender<()>,
+    blocked_tx: mpsc::Sender<()>,
+    unblock_rx: Mutex<Option<std::sync::mpsc::Receiver<()>>>,
+}
+
+impl Actor for RestartingMiddle {
+    type Message = ();
+    type State = ();
+    type Error = Boom;
+
+    fn init(&self, context: &ActorContext<Self::Message>) -> Result<Self::State, Self::Error> {
+        self.inits.fetch_add(1, SeqCst);
+        if let Some(unblock_rx) = self
+            .unblock_rx
+            .lock()
+            .expect("unblock mutex is not poisoned")
+            .take()
+        {
+            context.spawn(BlockedInInit {
+                blocked_tx: self.blocked_tx.clone(),
+                unblock_rx,
+            });
+        }
+
+        Ok(())
+    }
+
+    fn receive(
+        &self,
+        _: &ActorContext<Self::Message>,
+        _: Incoming<Self::Message>,
+        _: Self::State,
+    ) -> Result<Control<Self::State>, Self::Error> {
+        let _ = self.failed_tx.try_send(());
+        Err(Boom)
+    }
+}
+
+/// Ack and block in `init` until unblocked, so the parent's `stop_children` cannot complete before
+/// the test releases it; requires a multi thread runtime, since the blocked `init` occupies a
+/// worker.
+struct BlockedInInit {
+    blocked_tx: mpsc::Sender<()>,
+    unblock_rx: std::sync::mpsc::Receiver<()>,
+}
+
+impl Actor for BlockedInInit {
+    type Message = Nothing;
+    type State = ();
+    type Error = Boom;
+
+    fn init(&self, _: &ActorContext<Self::Message>) -> Result<Self::State, Self::Error> {
+        let _ = self.blocked_tx.try_send(());
+        let _ = self.unblock_rx.recv();
+        Ok(())
+    }
+
+    fn receive(
+        &self,
+        _: &ActorContext<Self::Message>,
+        _: Incoming<Self::Message>,
+        state: Self::State,
+    ) -> Result<Control<Self::State>, Self::Error> {
+        Ok(Control::Continue(state))
     }
 }
 
