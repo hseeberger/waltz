@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1786554711498,
+  "lastUpdate": 1786554882643,
   "repoUrl": "https://github.com/hseeberger/waltz",
   "entries": {
     "Benchmark": [
@@ -179,6 +179,66 @@ window.BENCHMARK_DATA = {
             "name": "fan_out/workers/16",
             "value": 3452113,
             "range": "± 21623",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "git@heikoseeberger.de",
+            "name": "Heiko Seeberger",
+            "username": "hseeberger"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "dc61901d5545ef2e6c8d925010843b3f5acb82af",
+          "message": "Merge pull request #7 from hseeberger/fix/terminate-mailbox-close\n\nfix: report termination instead of full mailbox while terminating",
+          "timestamp": "2026-08-12T19:13:14+02:00",
+          "tree_id": "525201746350610055103a13184da767505f21f9",
+          "url": "https://github.com/hseeberger/waltz/commit/dc61901d5545ef2e6c8d925010843b3f5acb82af"
+        },
+        "date": 1786554881889,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "flood/unbounded",
+            "value": 11396819,
+            "range": "± 783800",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "flood/bounded",
+            "value": 11251209,
+            "range": "± 71701",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ping_pong/pairs/1",
+            "value": 741884,
+            "range": "± 4367",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ping_pong/pairs/4",
+            "value": 791497,
+            "range": "± 3795",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "fan_out/workers/4",
+            "value": 5265101,
+            "range": "± 274125",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "fan_out/workers/16",
+            "value": 3629500,
+            "range": "± 34082",
             "unit": "ns/iter"
           }
         ]
