@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1786636234642,
+  "lastUpdate": 1786636463389,
   "repoUrl": "https://github.com/hseeberger/waltz",
   "entries": {
     "Benchmark": [
@@ -539,6 +539,66 @@ window.BENCHMARK_DATA = {
             "name": "fan_out/workers/16",
             "value": 3625175,
             "range": "± 20652",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "git@heikoseeberger.de",
+            "name": "Heiko Seeberger",
+            "username": "hseeberger"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "0b0126008773dc4a47c4438320d6d791f4f8da3b",
+          "message": "Merge pull request #13 from hseeberger/test/core-coverage-gaps\n\ntest: close coverage gaps in quota, termination and watch tests",
+          "timestamp": "2026-08-13T17:53:01+02:00",
+          "tree_id": "7719c57add6af08d60179a90b30f9e35d1a7f91f",
+          "url": "https://github.com/hseeberger/waltz/commit/0b0126008773dc4a47c4438320d6d791f4f8da3b"
+        },
+        "date": 1786636462636,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "flood/unbounded",
+            "value": 11550278,
+            "range": "± 188505",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "flood/bounded",
+            "value": 11847611,
+            "range": "± 338843",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ping_pong/pairs/1",
+            "value": 698610,
+            "range": "± 16058",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ping_pong/pairs/4",
+            "value": 780918,
+            "range": "± 5529",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "fan_out/workers/4",
+            "value": 5620216,
+            "range": "± 105836",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "fan_out/workers/16",
+            "value": 3630203,
+            "range": "± 24386",
             "unit": "ns/iter"
           }
         ]
