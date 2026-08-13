@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1786635692969,
+  "lastUpdate": 1786635985842,
   "repoUrl": "https://github.com/hseeberger/waltz",
   "entries": {
     "Benchmark": [
@@ -419,6 +419,66 @@ window.BENCHMARK_DATA = {
             "name": "fan_out/workers/16",
             "value": 3597178,
             "range": "± 9770",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "git@heikoseeberger.de",
+            "name": "Heiko Seeberger",
+            "username": "hseeberger"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "b3e0108292cf9ad3cf332eb240c6807ca7c3495d",
+          "message": "Merge pull request #11 from hseeberger/refactor/backoff-default-via-new\n\nrefactor: route Backoff::default through the validating constructor",
+          "timestamp": "2026-08-13T17:44:58+02:00",
+          "tree_id": "fae716941c71a9441102bf4da82473b34d009454",
+          "url": "https://github.com/hseeberger/waltz/commit/b3e0108292cf9ad3cf332eb240c6807ca7c3495d"
+        },
+        "date": 1786635984797,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "flood/unbounded",
+            "value": 20953680,
+            "range": "± 886419",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "flood/bounded",
+            "value": 28390899,
+            "range": "± 1002205",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ping_pong/pairs/1",
+            "value": 824778,
+            "range": "± 12886",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ping_pong/pairs/4",
+            "value": 1130867,
+            "range": "± 13882",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "fan_out/workers/4",
+            "value": 9267062,
+            "range": "± 439246",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "fan_out/workers/16",
+            "value": 8367919,
+            "range": "± 610665",
             "unit": "ns/iter"
           }
         ]
