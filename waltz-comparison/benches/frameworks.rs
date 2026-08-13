@@ -361,8 +361,8 @@ mod kameo_bench {
     use crate::{FLOOD_MESSAGES, PING_PONG_ROUNDS, count_down, fan_out_share, measure};
     use kameo::{
         Actor,
-        actor::{ActorRef, Spawn},
-        error::Infallible,
+        actor::{ActorRef, Spawn, WeakActorRef},
+        error::{ActorStopReason, Infallible},
         mailbox,
         message::{Context, Message},
     };
@@ -482,6 +482,21 @@ mod kameo_bench {
                 ponger,
                 remaining: args,
             })
+        }
+
+        // Must complete before wait_for_shutdown resolves, like waltz's child barrier does!
+        async fn on_stop(
+            &mut self,
+            _: WeakActorRef<Self>,
+            _: ActorStopReason,
+        ) -> Result<(), Self::Error> {
+            self.ponger
+                .stop_gracefully()
+                .await
+                .expect("kameo ponger stop is sent");
+            self.ponger.wait_for_shutdown().await;
+
+            Ok(())
         }
     }
 
@@ -671,14 +686,27 @@ mod ractor_bench {
             myself: ActorRef<Self::Msg>,
             args: Self::Arguments,
         ) -> Result<Self::State, ActorProcessingErr> {
-            let (ponger, _) = Actor::spawn(None, Ponger { pinger: myself }, ())
+            let (ponger, ponger_handle) = Actor::spawn(None, Ponger { pinger: myself }, ())
                 .await
                 .expect("ractor ponger is spawned");
 
             Ok(Pinging {
                 ponger,
+                ponger_handle,
                 remaining: args,
             })
+        }
+
+        // Must complete before the pinger's own join handle resolves, like waltz's child barrier!
+        async fn post_stop(
+            &self,
+            _: ActorRef<Self::Msg>,
+            state: &mut Self::State,
+        ) -> Result<(), ActorProcessingErr> {
+            state.ponger.stop(None);
+            (&mut state.ponger_handle).await?;
+
+            Ok(())
         }
 
         async fn handle(
@@ -714,6 +742,7 @@ mod ractor_bench {
 
     struct Pinging {
         ponger: ActorRef<Ping>,
+        ponger_handle: JoinHandle<()>,
         remaining: usize,
     }
 
