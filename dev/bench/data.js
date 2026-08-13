@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1786635376161,
+  "lastUpdate": 1786635692969,
   "repoUrl": "https://github.com/hseeberger/waltz",
   "entries": {
     "Benchmark": [
@@ -359,6 +359,66 @@ window.BENCHMARK_DATA = {
             "name": "fan_out/workers/16",
             "value": 3585237,
             "range": "± 22544",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "git@heikoseeberger.de",
+            "name": "Heiko Seeberger",
+            "username": "hseeberger"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "19aa4bdd2419d685e972759cf533edc1c373f54a",
+          "message": "Merge pull request #10 from hseeberger/fix/config-deny-unknown-fields\n\nfix: reject unknown fields in config deserialization",
+          "timestamp": "2026-08-13T17:40:00+02:00",
+          "tree_id": "f7d255131082274fba726f916b1b273c72869d4f",
+          "url": "https://github.com/hseeberger/waltz/commit/19aa4bdd2419d685e972759cf533edc1c373f54a"
+        },
+        "date": 1786635691956,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "flood/unbounded",
+            "value": 10205639,
+            "range": "± 232672",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "flood/bounded",
+            "value": 10528586,
+            "range": "± 186258",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ping_pong/pairs/1",
+            "value": 650282,
+            "range": "± 13342",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ping_pong/pairs/4",
+            "value": 798400,
+            "range": "± 18215",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "fan_out/workers/4",
+            "value": 4803624,
+            "range": "± 80514",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "fan_out/workers/16",
+            "value": 3597178,
+            "range": "± 9770",
             "unit": "ns/iter"
           }
         ]
