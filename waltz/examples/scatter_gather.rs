@@ -115,7 +115,7 @@ impl Actor for Worker {
         _: Self::State,
     ) -> Result<Control<Self::State>, Self::Error> {
         let Incoming::Message(Compute { shard, reply_to }) = incoming else {
-            unreachable!("worker only receives Compute")
+            unreachable!("worker watches no actor, hence never gets a terminated signal")
         };
 
         let (start, end) = (shard.start, shard.end);
