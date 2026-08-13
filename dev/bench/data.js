@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1786623677312,
+  "lastUpdate": 1786635376161,
   "repoUrl": "https://github.com/hseeberger/waltz",
   "entries": {
     "Benchmark": [
@@ -299,6 +299,66 @@ window.BENCHMARK_DATA = {
             "name": "fan_out/workers/16",
             "value": 3601391,
             "range": "± 18265",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "git@heikoseeberger.de",
+            "name": "Heiko Seeberger",
+            "username": "hseeberger"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "e2e737502f5e5c0d55d950b8126a62c6c81e2f16",
+          "message": "Merge pull request #9 from hseeberger/fix/ping-pong-teardown\n\nfix: align ping-pong teardown across benchmarked frameworks",
+          "timestamp": "2026-08-13T17:34:45+02:00",
+          "tree_id": "f463044c87f9059b11e52506c6773482559be82d",
+          "url": "https://github.com/hseeberger/waltz/commit/e2e737502f5e5c0d55d950b8126a62c6c81e2f16"
+        },
+        "date": 1786635375192,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "flood/unbounded",
+            "value": 10272962,
+            "range": "± 175727",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "flood/bounded",
+            "value": 10897385,
+            "range": "± 114524",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ping_pong/pairs/1",
+            "value": 687380,
+            "range": "± 12764",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ping_pong/pairs/4",
+            "value": 811837,
+            "range": "± 5058",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "fan_out/workers/4",
+            "value": 4927222,
+            "range": "± 140470",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "fan_out/workers/16",
+            "value": 3585237,
+            "range": "± 22544",
             "unit": "ns/iter"
           }
         ]
