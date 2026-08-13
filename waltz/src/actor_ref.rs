@@ -3,13 +3,13 @@ use crate::{
     mailbox::{Mailbox, MailboxHandle, TerminatedSink, Watcher, WatcherRegistry, make_mailbox},
 };
 use derive_more::Debug;
-use log::warn;
 use std::{
     any::type_name,
     fmt::Display,
     hash::{Hash, Hasher},
     sync::Arc,
 };
+use tracing::warn;
 
 /// A shareable reference to an actor, used to send it messages and read its ID.
 ///
@@ -52,9 +52,9 @@ impl<M> ActorRef<M> {
 
     fn dead_letter(&self, error: &dyn Display) {
         warn!(
-            actor_id:% = self.actor_id,
+            actor_id = %self.actor_id,
             message_type = type_name::<M>(),
-            error:%;
+            %error,
             "dead letter"
         );
     }

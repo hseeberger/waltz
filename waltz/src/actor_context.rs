@@ -4,7 +4,6 @@ use crate::{
     mailbox::{Mailbox, WatcherRegistry},
 };
 use derive_more::Debug;
-use log::{debug, error};
 use std::{
     any::Any,
     cell::RefCell,
@@ -22,6 +21,7 @@ use tokio::{
     task,
     time::{Instant, sleep},
 };
+use tracing::{debug, error};
 
 /// Contextual methods for a given actor, provided to [Actor::init] and [Actor::receive].
 ///
@@ -170,7 +170,7 @@ where
                             biased;
 
                             _ = &mut stopped_by_parent => {
-                                debug!(actor_id:%; "stopping, because parent stopped this actor");
+                                debug!(%actor_id, "stopping, because parent stopped this actor");
                                 drop_containing_panic(
                                     actor_id,
                                     "actor state failed to drop",
@@ -188,8 +188,8 @@ where
                             && !context.take_watched_for(*other)
                         {
                             debug!(
-                                actor_id:%,
-                                other_id:% = *other;
+                                %actor_id,
+                                other_id = %*other,
                                 "dropping terminated signal for an unwatched actor"
                             );
                             continue;
@@ -201,7 +201,7 @@ where
                             Some(Control::Continue(next_state)) => state = next_state,
 
                             Some(Control::Stop) => {
-                                debug!(actor_id:%; "stopping as decided by actor");
+                                debug!(%actor_id, "stopping as decided by actor");
                                 break 'run;
                             }
 
@@ -215,7 +215,7 @@ where
                     Restart::After(delay) => delay,
 
                     Restart::LimitExceeded => {
-                        error!(actor_id:%; "stopping, because the restart limit is exceeded");
+                        error!(%actor_id, "stopping, because the restart limit is exceeded");
                         break;
                     }
 
@@ -223,17 +223,17 @@ where
                 };
 
                 if parent_stopping_rx.has_changed().unwrap_or(true) {
-                    debug!(actor_id:%; "stopping, because parent stopped this actor");
+                    debug!(%actor_id, "stopping, because parent stopped this actor");
                     break;
                 }
-                debug!(actor_id:%, restarts, delay:?; "restarting");
+                debug!(%actor_id, restarts, ?delay, "restarting");
 
                 context.stop_children().await;
 
                 // Again check if stopped by parent to avoid finding out after restarting.
                 if delay.is_zero() {
                     if parent_stopping_rx.has_changed().unwrap_or(true) {
-                        debug!(actor_id:%; "stopping, because parent stopped this actor");
+                        debug!(%actor_id, "stopping, because parent stopped this actor");
                         break;
                     }
                 } else {
@@ -241,7 +241,7 @@ where
                         biased;
 
                         _ = &mut stopped_by_parent => {
-                            debug!(actor_id:%; "stopping, because parent stopped this actor");
+                            debug!(%actor_id, "stopping, because parent stopped this actor");
                             break;
                         }
 
@@ -296,12 +296,12 @@ where
         Ok(Ok(value)) => Some(value),
 
         Ok(Err(error)) => {
-            error!(actor_id:%, error:%; "{failure}");
+            error!(%actor_id, %error, "{failure}");
             None
         }
 
         Err(panic) => {
-            error!(actor_id:%, panic:% = PanicPayload(panic.as_ref()); "{failure}");
+            error!(%actor_id, panic = %PanicPayload(panic.as_ref()), "{failure}");
             None
         }
     }
@@ -310,7 +310,7 @@ where
 /// A panic escaping the destructor must not unwind the task.
 fn drop_containing_panic<T>(actor_id: ActorId, failure: &str, value: T) {
     if let Err(panic) = catch_unwind(AssertUnwindSafe(|| drop(value))) {
-        error!(actor_id:%, panic:% = PanicPayload(panic.as_ref()); "{failure}");
+        error!(%actor_id, panic = %PanicPayload(panic.as_ref()), "{failure}");
     }
 }
 
@@ -347,7 +347,7 @@ where
     }
 
     context.stop_children().await;
-    debug!(actor_id:%; "all child actors terminated");
+    debug!(%actor_id, "all child actors terminated");
     drop(context);
 
     drop_containing_panic(actor_id, "actor failed to drop", actor);
@@ -355,14 +355,15 @@ where
     for watcher in closed_mailbox.take_watchers() {
         if let Err(error) = watcher.send_terminated(actor_id) {
             debug!(
-                actor_id:%,
-                watcher_id:% = watcher.watcher_id(),
-                error:%; "cannot send terminated signal"
+                %actor_id,
+                watcher_id = %watcher.watcher_id(),
+                %error,
+                "cannot send terminated signal"
             );
         }
     }
 
-    debug!(actor_id:%; "terminated");
+    debug!(%actor_id, "terminated");
 }
 
 #[cfg(test)]
