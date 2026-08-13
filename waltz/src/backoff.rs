@@ -53,10 +53,7 @@ impl Backoff {
 
 impl Default for Backoff {
     fn default() -> Self {
-        Self {
-            min: Self::DEFAULT_MIN,
-            max: Self::DEFAULT_MAX,
-        }
+        Self::new(Self::DEFAULT_MIN, Self::DEFAULT_MAX).expect("the default bounds are ordered")
     }
 }
 
@@ -124,5 +121,18 @@ mod tests {
     fn a_cap_below_the_minimum_is_rejected() {
         assert!(Backoff::new(MAX, MIN).is_err());
         assert!(Backoff::new(MIN, MIN).is_ok());
+    }
+
+    /// The `try_from` container attribute, the humantime field codecs and the validation bridge
+    /// are only reachable through serde; this crosses that boundary in both directions.
+    #[cfg(feature = "serde")]
+    #[test]
+    fn deserializing_validates_the_bounds() {
+        let backoff = serde_json::from_str::<Backoff>(r#"{ "min": "250ms", "max": "3s" }"#)
+            .expect("the bounds are ordered");
+        assert_eq!(backoff.min(), MIN);
+        assert_eq!(backoff.max(), MAX);
+
+        assert!(serde_json::from_str::<Backoff>(r#"{ "min": "3s", "max": "250ms" }"#).is_err());
     }
 }
