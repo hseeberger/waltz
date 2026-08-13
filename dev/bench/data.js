@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1786635985842,
+  "lastUpdate": 1786636234642,
   "repoUrl": "https://github.com/hseeberger/waltz",
   "entries": {
     "Benchmark": [
@@ -479,6 +479,66 @@ window.BENCHMARK_DATA = {
             "name": "fan_out/workers/16",
             "value": 8367919,
             "range": "± 610665",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "git@heikoseeberger.de",
+            "name": "Heiko Seeberger",
+            "username": "hseeberger"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "37f2f8ffcea86c05f9fdc2a1648f349e3464bc39",
+          "message": "Merge pull request #12 from hseeberger/refactor/take-watchers-one-shot\n\nrefactor: make ClosedMailbox::take_watchers consume the mailbox",
+          "timestamp": "2026-08-13T17:49:06+02:00",
+          "tree_id": "0aa0e3fca7974f50a4648212427eaa1ff8de0713",
+          "url": "https://github.com/hseeberger/waltz/commit/37f2f8ffcea86c05f9fdc2a1648f349e3464bc39"
+        },
+        "date": 1786636233657,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "flood/unbounded",
+            "value": 11557229,
+            "range": "± 104098",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "flood/bounded",
+            "value": 13613910,
+            "range": "± 132750",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ping_pong/pairs/1",
+            "value": 779662,
+            "range": "± 8600",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ping_pong/pairs/4",
+            "value": 779656,
+            "range": "± 4168",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "fan_out/workers/4",
+            "value": 5945443,
+            "range": "± 131988",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "fan_out/workers/16",
+            "value": 3625175,
+            "range": "± 20652",
             "unit": "ns/iter"
           }
         ]
