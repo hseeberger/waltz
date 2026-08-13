@@ -22,7 +22,7 @@ pub struct ActorRef<M> {
     actor_id: ActorId,
 
     #[debug(skip)]
-    mailbox_handle: MailboxHandle<M>,
+    sink: Sink<M>,
 }
 
 impl<M> ActorRef<M> {
@@ -34,10 +34,23 @@ impl<M> ActorRef<M> {
     /// Send a message to the actor represented by this reference without blocking. If the actor
     /// has terminated, or if its mailbox is full for [crate::MailboxCapacity::Bounded], the message
     /// is dropped and logged as a dead letter. Also, even if the message is delivered to the
-    /// actor, it might stop before processing it.
+    /// actor, it might stop before processing it. With the `remote` feature a reference can point
+    /// to an actor on another node; then an unreachable node or a full outbound queue equally
+    /// makes the message a dead letter.
     pub fn tell(&self, message: M) {
-        if let Err(error) = self.mailbox_handle.try_send_message(message) {
-            self.dead_letter(&error);
+        match &self.sink {
+            Sink::Local(mailbox_handle) => {
+                if let Err(error) = mailbox_handle.try_send_message(message) {
+                    self.dead_letter(&error);
+                }
+            }
+
+            #[cfg(feature = "remote")]
+            Sink::Remote(remote_sink) => {
+                if let Err(error) = remote_sink.try_send_message(message) {
+                    self.dead_letter(&error);
+                }
+            }
         }
     }
 
@@ -53,6 +66,10 @@ impl<M> ActorRef<M> {
     /// [ReplyTo] alive without replying, the ask resolves as `Timeout`; a late reply is dropped
     /// and logged as a dead letter.
     ///
+    /// With the `remote` feature the reference can point to an actor on another node; the same
+    /// contract holds, with the `NoReply` detection weakening as spelled out in the `remote`
+    /// module documentation.
+    ///
     /// For code outside of any actor, e.g. alongside [ActorSystem::terminated]; inside an actor
     /// use [ActorContext::reply_to] instead of awaiting.
     ///
@@ -66,7 +83,7 @@ impl<M> ActorRef<M> {
         let actor_id = self.actor_id;
         let (reply_tx, reply_rx) = oneshot::channel();
 
-        let reply_to = ReplyTo::new(move |reply| {
+        let reply_to = ReplyTo::new(actor_id, move |reply| {
             if reply_tx.send(reply).is_err() {
                 warn!(
                     %actor_id,
@@ -77,8 +94,14 @@ impl<M> ActorRef<M> {
             }
         });
 
-        self.mailbox_handle
-            .try_send_message(make_message(reply_to))?;
+        match &self.sink {
+            Sink::Local(mailbox_handle) => {
+                mailbox_handle.try_send_message(make_message(reply_to))?
+            }
+
+            #[cfg(feature = "remote")]
+            Sink::Remote(remote_sink) => remote_sink.try_send_message(make_message(reply_to))?,
+        }
 
         match timeout(within, reply_rx).await {
             Ok(reply) => reply.map_err(|_| AskError::NoReply),
@@ -86,14 +109,35 @@ impl<M> ActorRef<M> {
         }
     }
 
-    pub(crate) fn watcher_registry(&self) -> &WatcherRegistry {
-        self.mailbox_handle.watcher_registry()
+    pub(crate) fn watch_target(&self) -> WatchTarget<'_> {
+        match &self.sink {
+            Sink::Local(mailbox_handle) => WatchTarget::Local(mailbox_handle.watcher_registry()),
+
+            #[cfg(feature = "remote")]
+            Sink::Remote(remote_sink) => WatchTarget::Remote(remote_sink.node()),
+        }
+    }
+
+    #[cfg(feature = "remote")]
+    pub(crate) fn watcher_registry(&self) -> Option<&WatcherRegistry> {
+        match &self.sink {
+            Sink::Local(mailbox_handle) => Some(mailbox_handle.watcher_registry()),
+            Sink::Remote(_) => None,
+        }
+    }
+
+    #[cfg(feature = "remote")]
+    pub(crate) fn remote(remote_sink: crate::remote::RemoteSink<M>) -> Self {
+        Self {
+            actor_id: remote_sink.target(),
+            sink: Sink::Remote(remote_sink),
+        }
     }
 
     fn new(actor_id: ActorId, mailbox_handle: MailboxHandle<M>) -> Self {
         Self {
             actor_id,
-            mailbox_handle,
+            sink: Sink::Local(mailbox_handle),
         }
     }
 
@@ -130,7 +174,33 @@ impl<M> Clone for ActorRef<M> {
     fn clone(&self) -> Self {
         Self {
             actor_id: self.actor_id,
-            mailbox_handle: self.mailbox_handle.clone(),
+            sink: self.sink.clone(),
+        }
+    }
+}
+
+pub(crate) enum WatchTarget<'a> {
+    Local(&'a WatcherRegistry),
+
+    #[cfg(feature = "remote")]
+    Remote(crate::remote::NodeId),
+}
+
+pub(crate) enum Sink<M> {
+    Local(MailboxHandle<M>),
+
+    #[cfg(feature = "remote")]
+    Remote(crate::remote::RemoteSink<M>),
+}
+
+// A derived `Clone` would needlessly require `M: Clone`.
+impl<M> Clone for Sink<M> {
+    fn clone(&self) -> Self {
+        match self {
+            Sink::Local(mailbox_handle) => Sink::Local(mailbox_handle.clone()),
+
+            #[cfg(feature = "remote")]
+            Sink::Remote(remote_sink) => Sink::Remote(remote_sink.clone()),
         }
     }
 }

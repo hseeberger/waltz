@@ -8,6 +8,9 @@ bench_regression_threshold := "0.15"
 check:
     cargo check -p waltz --all-targets
     cargo check -p waltz --all-targets --features serde
+    cargo check -p waltz --all-targets --features remote
+    cargo check -p waltz --all-targets --features remote-dev
+    cargo check -p waltz --all-targets --all-features
 
 fix:
     cargo fix -p waltz --all-targets --allow-dirty --allow-staged
@@ -20,18 +23,21 @@ fmt-check:
     cargo +{{ nightly }} fmt --check
 
 lint:
-    cargo clippy -p waltz --all-targets --no-deps                  -- -D warnings
-    cargo clippy -p waltz --all-targets --no-deps --features serde -- -D warnings
+    cargo clippy -p waltz --all-targets --no-deps                       -- -D warnings
+    cargo clippy -p waltz --all-targets --no-deps --features serde      -- -D warnings
+    cargo clippy -p waltz --all-targets --no-deps --features remote     -- -D warnings
+    cargo clippy -p waltz --all-targets --no-deps --features remote-dev -- -D warnings
+    cargo clippy -p waltz --all-targets --no-deps --all-features        -- -D warnings
 
 lint-fix:
     cargo clippy -p waltz --all-targets --no-deps --allow-dirty --allow-staged --fix
 
 test:
     cargo test -p waltz
-    cargo test -p waltz --features serde
+    cargo test -p waltz --all-features
 
 doc:
-    RUSTDOCFLAGS="-D warnings" cargo +{{ nightly }} doc -p waltz --no-deps --all-features
+    RUSTDOCFLAGS="-D warnings --cfg docsrs" cargo +{{ nightly }} doc -p waltz --no-deps --all-features
 
 all: check fmt lint test doc
 
@@ -46,6 +52,9 @@ bench-compare baseline:
 
 bench-bencher:
     cargo bench -p waltz --bench messaging -- --output-format bencher
+
+bench-remote:
+    WALTZ_REMOTING_ROLE=bench cargo test -p waltz --test remoting --features remote-dev --release
 
 bench-report:
     #!/usr/bin/env bash
@@ -91,6 +100,9 @@ run-examples-counter:
 
 run-examples-scatter-gather:
     RUST_LOG=waltz=debug cargo run -p waltz --example scatter_gather
+
+run-examples-remote-scatter-gather:
+    RUST_LOG=waltz=debug cargo run -p waltz --features remote-dev --example remote_scatter_gather
 
 run-examples-supervision:
     RUST_LOG=waltz=debug cargo run -p waltz --example supervision
