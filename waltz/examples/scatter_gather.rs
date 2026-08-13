@@ -10,15 +10,15 @@
 //! `RUST_LOG`, e.g. `RUST_LOG=waltz=debug cargo run --quiet -p waltz --example scatter_gather`.
 
 use anyhow::Context;
-use logforth::{append::Stderr, filter::rustlog::RustLogFilterBuilder, layout::JsonLayout};
-use std::{convert::Infallible, ops::Range};
+use std::{convert::Infallible, io, ops::Range};
+use tracing_subscriber::{EnvFilter, layer::SubscriberExt, util::SubscriberInitExt};
 use waltz::{Actor, ActorContext, ActorRef, ActorSystem, Control, Incoming};
 
 const SHARDS: [Range<u64>; 4] = [1..26, 26..51, 51..76, 76..101];
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    init_logging();
+    init_tracing();
 
     let system = ActorSystem::new(Gatherer);
 
@@ -28,14 +28,16 @@ async fn main() -> anyhow::Result<()> {
         .context("awaiting actor system termination")
 }
 
-fn init_logging() {
-    logforth::starter_log::builder()
-        .dispatch(|dispatch| {
-            dispatch
-                .filter(RustLogFilterBuilder::from_default_env().build())
-                .append(Stderr::default().with_layout(JsonLayout::default()))
-        })
-        .apply();
+fn init_tracing() {
+    tracing_subscriber::registry()
+        .with(EnvFilter::from_default_env())
+        .with(
+            tracing_subscriber::fmt::layer()
+                .json()
+                .flatten_event(true)
+                .with_writer(io::stderr),
+        )
+        .init();
 }
 
 struct Gatherer;

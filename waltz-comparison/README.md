@@ -66,10 +66,10 @@ early.
 
 ## Competitors are configured for speed, not defaults
 
-Both competitors ship tracing-related features enabled by default, which waltz has no equivalent of
-(waltz uses `log`, but logs nothing per message). Benchmarking them as-shipped would charge them for
-an observability feature while measuring waltz without one, so both are built with those features
-off:
+Both competitors ship per-message instrumentation enabled by default, which waltz has no equivalent
+of (waltz depends on `tracing` too, but emits nothing per message). Benchmarking them as-shipped
+would charge them for an observability feature while measuring waltz without one, so both are built
+with those features off:
 
 - `kameo`: `default-features = false`, dropping `tracing` (and `macros`, which has no runtime cost).
   Measured **12.5% faster** than with defaults on `flood`.

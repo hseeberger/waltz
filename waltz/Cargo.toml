@@ -20,17 +20,17 @@ serde = [ "dep:humantime-serde", "dep:serde" ]
 derive_more     = { workspace = true, features = [ "debug", "display", "into" ] }
 flume           = { workspace = true, features = [ "async" ] }
 humantime-serde = { workspace = true, optional = true }
-log             = { workspace = true, features = [ "kv" ] }
 serde           = { workspace = true, features = [ "derive" ], optional = true }
 thiserror       = { workspace = true }
 tokio           = { workspace = true, features = [ "macros", "rt", "sync", "time" ] }
+tracing         = { workspace = true }
 uuid            = { workspace = true, features = [ "v7" ] }
 
 [dev-dependencies]
-anyhow    = { workspace = true }
-criterion = { workspace = true, features = [ "async_tokio" ] }
-logforth  = { workspace = true, features = [ "starter-log" ] }
-tokio     = { workspace = true, features = [ "macros", "rt-multi-thread", "test-util", "time" ] }
+anyhow             = { workspace = true }
+criterion          = { workspace = true, features = [ "async_tokio" ] }
+tracing-subscriber = { workspace = true, features = [ "env-filter", "fmt", "json" ] }
+tokio              = { workspace = true, features = [ "macros", "rt-multi-thread", "test-util", "time" ] }
 
 [[bench]]
 name    = "messaging"

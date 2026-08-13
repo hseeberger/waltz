@@ -12,18 +12,18 @@ documentation = "https://github.com/hseeberger/waltz"
 publish       = false
 
 [workspace.dependencies]
-anyhow          = { version = "1.0" }
-criterion       = { version = "0.8" }
-derive_more     = { version = "2.1" }
-flume           = { version = "0.12", default-features = false }
-humantime-serde = { version = "1.1" }
-kameo           = { version = "0.22", default-features = false }
-log             = { version = "0.4" }
-logforth        = { version = "0.30" }
-ractor          = { version = "0.16", default-features = false }
-serde           = { version = "1.0" }
-serde_json      = { version = "1.0" }
-thiserror       = { version = "2.0" }
-tokio           = { version = "1" }
-uuid            = { version = "1.24" }
-waltz           = { path = "waltz" }
+anyhow             = { version = "1.0" }
+criterion          = { version = "0.8" }
+derive_more        = { version = "2.1" }
+flume              = { version = "0.12", default-features = false }
+humantime-serde    = { version = "1.1" }
+kameo              = { version = "0.22", default-features = false }
+ractor             = { version = "0.16", default-features = false }
+serde              = { version = "1.0" }
+serde_json         = { version = "1.0" }
+thiserror          = { version = "2.0" }
+tokio              = { version = "1" }
+tracing            = { version = "0.1" }
+tracing-subscriber = { version = "0.3" }
+uuid               = { version = "1.24" }
+waltz              = { path = "waltz" }

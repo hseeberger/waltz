@@ -378,8 +378,8 @@ This is a capability difference, not only a speed difference, and it favours wal
 <li><strong>waltz's mailbox is statically typed; the others erase message types</strong>, costing an allocation
 and a dynamic dispatch per message that waltz does not pay.</li>
 <li><strong>Competitors are configured for speed, not defaults.</strong> kameo runs without <code>tracing</code>
-and ractor without <code>message_span_propogation</code>, both of which waltz has no equivalent of. This biases
-the setup in the competitors' favour.</li>
+and ractor without <code>message_span_propogation</code>, both of which add per-message instrumentation that
+waltz has no equivalent of. This biases the setup in the competitors' favour.</li>
 <li><strong>Messaging microbenchmarks only.</strong> Nothing here speaks to supervision, distribution,
 ergonomics, memory use or production readiness. kameo and ractor are mature, feature-rich frameworks; waltz is
 under active development and does far less.</li>

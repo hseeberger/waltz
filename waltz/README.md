@@ -32,8 +32,8 @@ waltz is under active development: the API is unstable and the crate is not yet 
   actor stops its children first; `ActorSystem::terminated` resolves once the whole tree has
   terminated.
 - **Fire-and-forget messaging.** `ActorRef::tell` never blocks and delivers at most once;
-  undeliverable messages are dropped and logged as dead letters (structured logging via `log` with
-  key-values).
+  undeliverable messages are dropped and logged as dead letters (structured logging via `tracing`
+  with fields).
 - **Death watch with an ordering guarantee.** `ActorContext::watch` delivers a terminated signal
   which is ordered behind all messages the terminated actor has delivered to the watcher, hence
   receiving it proves the watcher has seen every message from that actor it will ever see.
