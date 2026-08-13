@@ -56,7 +56,9 @@ The point of these benchmarks is that all three frameworks perform the *same wor
    `tell(..).try_send()`, ractor `ActorRef::send_message`. No awaited sends (that is backpressure, a
    different guarantee) and no request-response calls.
 4. **Identical timing boundaries.** Every framework goes through the same `measure` helper: spawning
-   happens outside the measured region, and the timer covers sending plus awaiting termination.
+   happens outside the measured region, and the timer covers sending plus awaiting termination. In
+   `ping_pong` that includes both actors of a pair: waltz tears the ponger down as a child of the
+   pinger, kameo and ractor stop and await it in the pinger's stop hook.
 5. **Identical runtime**: one multi-threaded Tokio runtime, same configuration for all.
 6. **Competitors get their fastest configuration** (see below).
 
