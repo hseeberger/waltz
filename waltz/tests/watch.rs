@@ -20,7 +20,9 @@ const WATCHERS: u32 = 20;
 const PRE_WATCHERS: u32 = 50;
 const DELAY_STEP: Duration = Duration::from_nanos(250);
 
-/// Watching an actor which has already terminated must still deliver the terminated signal.
+/// Watching an actor which has already terminated must still deliver the terminated signal. The
+/// termination is observed through another watcher's signal, which the child sends only after
+/// closing its registration, so the root provably watches after the child fully terminated.
 #[tokio::test]
 async fn watch_after_terminated_still_signals() {
     let (terminated_tx, mut terminated_rx) = mpsc::channel(1);
@@ -238,15 +240,22 @@ where
         .expect("watching the root actor failed");
 }
 
+/// Spawn the child and an [Observer] watching it: the observer's report proves the child has
+/// signaled its watchers, i.e. closed its registration, before the root is told to watch it.
 struct Root(mpsc::Sender<()>);
 
 impl Actor for Root {
     type Message = RootMessage;
-    type State = ActorRef<()>;
+    type State = ActorRef<Stop>;
     type Error = Infallible;
 
     fn init(&self, context: &ActorContext<Self::Message>) -> Result<Self::State, Self::Error> {
-        Ok(context.spawn(Child(self.0.clone())))
+        let child = context.spawn(Target);
+        context.spawn(Observer {
+            target: child.clone(),
+            terminated_tx: self.0.clone(),
+        });
+        Ok(child)
     }
 
     fn receive(
@@ -257,7 +266,7 @@ impl Actor for Root {
     ) -> Result<Control<Self::State>, Self::Error> {
         match incoming {
             Incoming::Message(RootMessage::StopChild) => {
-                state.tell(());
+                state.tell(Stop);
                 Ok(Control::Continue(state))
             }
 

@@ -50,10 +50,16 @@ async fn dropping_the_system_does_not_stop_the_actors() {
     drop(system);
 
     root.tell(());
-
     recv(
         &mut received_rx,
         "root actor did not receive the message after its actor system was dropped",
+    )
+    .await;
+
+    root.tell(());
+    recv(
+        &mut received_rx,
+        "root actor stopped processing messages after its actor system was dropped",
     )
     .await;
 }
@@ -222,7 +228,7 @@ impl Actor for GrandChild {
     }
 }
 
-/// Report the message it receives, so that its sender can tell that this actor is still running.
+/// Report every message it receives, so that its sender can tell that this actor keeps running.
 struct Echo(mpsc::Sender<()>);
 
 impl Actor for Echo {
@@ -238,10 +244,10 @@ impl Actor for Echo {
         &self,
         _: &ActorContext<Self::Message>,
         _: Incoming<Self::Message>,
-        _: Self::State,
+        state: Self::State,
     ) -> Result<Control<Self::State>, Self::Error> {
         let _ = self.0.try_send(());
-        Ok(Control::Stop)
+        Ok(Control::Continue(state))
     }
 }
 
