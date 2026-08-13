@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1786636463389,
+  "lastUpdate": 1786636694949,
   "repoUrl": "https://github.com/hseeberger/waltz",
   "entries": {
     "Benchmark": [
@@ -599,6 +599,66 @@ window.BENCHMARK_DATA = {
             "name": "fan_out/workers/16",
             "value": 3630203,
             "range": "± 24386",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "git@heikoseeberger.de",
+            "name": "Heiko Seeberger",
+            "username": "hseeberger"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "10612ad1f63f8971a34a99f0a881a5237c4facb0",
+          "message": "Merge pull request #14 from hseeberger/fix/scatter-gather-unreachable-message\n\nfix: correct misleading unreachable message in scatter_gather",
+          "timestamp": "2026-08-13T17:56:46+02:00",
+          "tree_id": "b4f596d1cbc23d6b754848dec2218e88bd675058",
+          "url": "https://github.com/hseeberger/waltz/commit/10612ad1f63f8971a34a99f0a881a5237c4facb0"
+        },
+        "date": 1786636693579,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "flood/unbounded",
+            "value": 9569862,
+            "range": "± 274212",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "flood/bounded",
+            "value": 14211817,
+            "range": "± 87446",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ping_pong/pairs/1",
+            "value": 685025,
+            "range": "± 10942",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ping_pong/pairs/4",
+            "value": 793304,
+            "range": "± 3811",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "fan_out/workers/4",
+            "value": 4763034,
+            "range": "± 148352",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "fan_out/workers/16",
+            "value": 3464576,
+            "range": "± 18890",
             "unit": "ns/iter"
           }
         ]
