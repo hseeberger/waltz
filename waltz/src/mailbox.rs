@@ -74,7 +74,9 @@ impl<M> Mailbox<M> {
 pub(crate) struct ClosedMailbox(WatcherRegistry);
 
 impl ClosedMailbox {
-    pub(crate) fn take_watchers(&self) -> Vec<Watcher> {
+    /// Consumes the mailbox: an empty result always means an unwatched actor, never a repeated
+    /// take.
+    pub(crate) fn take_watchers(self) -> Vec<Watcher> {
         self.0.take()
     }
 }
@@ -439,6 +441,5 @@ mod tests {
 
         let watcher = Watcher::new(ActorId::new(), mailbox_handle.terminated_sink());
         assert!(mailbox_handle.watcher_registry().add(watcher).is_err());
-        assert!(closed_mailbox.take_watchers().is_empty());
     }
 }
