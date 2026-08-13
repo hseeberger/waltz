@@ -1139,6 +1139,7 @@ dependencies = [
  "flume",
  "humantime-serde",
  "serde",
+ "serde_json",
  "thiserror",
  "tokio",
  "tracing",
