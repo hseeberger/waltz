@@ -29,6 +29,7 @@ uuid            = { workspace = true, features = [ "v7" ] }
 [dev-dependencies]
 anyhow             = { workspace = true }
 criterion          = { workspace = true, features = [ "async_tokio" ] }
+serde_json         = { workspace = true }
 tracing-subscriber = { workspace = true, features = [ "env-filter", "fmt", "json" ] }
 tokio              = { workspace = true, features = [ "macros", "rt-multi-thread", "test-util", "time" ] }
 

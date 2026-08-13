@@ -8,7 +8,11 @@ use std::{
 ///
 /// [Actor]: crate::Actor
 #[derive(Debug, Default, Clone, Copy)]
-#[cfg_attr(feature = "serde", derive(serde::Deserialize), serde(default))]
+#[cfg_attr(
+    feature = "serde",
+    derive(serde::Deserialize),
+    serde(default, deny_unknown_fields)
+)]
 pub struct ActorConfig {
     /// The capacity of the actor's mailbox. Defaults to [MailboxCapacity::Unbounded].
     pub mailbox_capacity: MailboxCapacity,
@@ -70,7 +74,11 @@ pub enum SupervisionStrategy {
 /// [Actor::init]: crate::Actor::init
 /// [Actor::receive]: crate::Actor::receive
 #[derive(Debug, Clone, Copy)]
-#[cfg_attr(feature = "serde", derive(serde::Deserialize))]
+#[cfg_attr(
+    feature = "serde",
+    derive(serde::Deserialize),
+    serde(deny_unknown_fields)
+)]
 pub struct RestartPolicy {
     /// The maximum number of restarts within a streak; one more failure stops the actor.
     pub max_restarts: NonZeroU32,
@@ -122,5 +130,55 @@ mod tests {
         assert_eq!(policy.backoff.min(), Backoff::DEFAULT_MIN);
         assert_eq!(policy.backoff.max(), Backoff::DEFAULT_MAX);
         assert_eq!(policy.reset_after, RestartPolicy::DEFAULT_RESET_AFTER);
+    }
+
+    /// The snake_case variant names, the per-field defaults and the humantime duration format are
+    /// a public configuration surface; this pins it down.
+    #[cfg(feature = "serde")]
+    #[test]
+    fn a_config_deserializes_from_its_documented_form() {
+        use crate::{ActorConfig, MailboxCapacity, SupervisionStrategy};
+        use std::time::Duration;
+
+        let config = serde_json::from_str::<ActorConfig>(
+            r#"{
+                "mailbox_capacity": { "bounded": 42 },
+                "supervision_strategy": { "restart": { "max_restarts": 3, "reset_after": "1m" } }
+            }"#,
+        )
+        .expect("the documented config form deserializes");
+
+        assert!(matches!(
+            config.mailbox_capacity,
+            MailboxCapacity::Bounded(capacity) if capacity.get() == 42
+        ));
+
+        let SupervisionStrategy::Restart(policy) = config.supervision_strategy else {
+            panic!("expected a restart strategy")
+        };
+        assert_eq!(policy.max_restarts.get(), 3);
+        assert_eq!(policy.reset_after, Duration::from_secs(60));
+        assert_eq!(policy.backoff.min(), Backoff::DEFAULT_MIN);
+        assert_eq!(policy.backoff.max(), Backoff::DEFAULT_MAX);
+    }
+
+    /// A misspelled key must be an error, not a silently applied default.
+    #[cfg(feature = "serde")]
+    #[test]
+    fn deserializing_rejects_unknown_fields() {
+        use crate::ActorConfig;
+
+        let config =
+            serde_json::from_str::<ActorConfig>(r#"{ "mailbox_capacty": { "bounded": 42 } }"#);
+        assert!(config.is_err());
+
+        let config = serde_json::from_str::<ActorConfig>(
+            r#"{
+                "supervision_strategy": {
+                    "restart": { "max_restarts": 3, "reset_atfer": "1m" }
+                }
+            }"#,
+        );
+        assert!(config.is_err());
     }
 }
