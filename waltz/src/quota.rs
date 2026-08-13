@@ -201,6 +201,21 @@ mod tests {
         assert!(quota.reserve().is_ok());
     }
 
+    /// Cloning a sender shares its quota, so a clone cannot admit extra items past the capacity;
+    /// this pins the manual [Clone] impl, which must clone the quota, never rebuild it.
+    #[test]
+    fn sender_clones_share_the_quota() {
+        let (item_tx, _item_rx) = flume::unbounded();
+        let item_tx = CountedSender::new(item_tx, Quota::bounded(NonZeroUsize::MIN));
+        let clone = item_tx.clone();
+
+        assert!(item_tx.try_send_counted(()).is_ok());
+        assert!(matches!(
+            clone.try_send_counted(()),
+            Err(CountedSendError::Full(_))
+        ));
+    }
+
     /// A send failing once its reservation is taken releases that reservation, so a disconnect
     /// costs no capacity; committing only on success is what keeps the count off the failure path.
     #[test]
