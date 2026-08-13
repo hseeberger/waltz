@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1786554882643,
+  "lastUpdate": 1786623677312,
   "repoUrl": "https://github.com/hseeberger/waltz",
   "entries": {
     "Benchmark": [
@@ -239,6 +239,66 @@ window.BENCHMARK_DATA = {
             "name": "fan_out/workers/16",
             "value": 3629500,
             "range": "± 34082",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "git@heikoseeberger.de",
+            "name": "Heiko Seeberger",
+            "username": "hseeberger"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "c95605204e3e090f688461a037700b3a6a3f0bee",
+          "message": "Merge pull request #8 from hseeberger/refactor/tracing\n\nrefactor: switch from log/logforth to tracing",
+          "timestamp": "2026-08-13T14:19:45+02:00",
+          "tree_id": "7780ce4059a55f20eec8470f89fdd7018b1e2f63",
+          "url": "https://github.com/hseeberger/waltz/commit/c95605204e3e090f688461a037700b3a6a3f0bee"
+        },
+        "date": 1786623676856,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "flood/unbounded",
+            "value": 10150389,
+            "range": "± 90813",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "flood/bounded",
+            "value": 13279544,
+            "range": "± 46327",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ping_pong/pairs/1",
+            "value": 686721,
+            "range": "± 13294",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ping_pong/pairs/4",
+            "value": 890027,
+            "range": "± 24433",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "fan_out/workers/4",
+            "value": 4786653,
+            "range": "± 167024",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "fan_out/workers/16",
+            "value": 3601391,
+            "range": "± 18265",
             "unit": "ns/iter"
           }
         ]
