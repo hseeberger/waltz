@@ -1,5 +1,5 @@
 use crate::{
-    ActorId, MailboxCapacity,
+    ActorId, AskError, MailboxCapacity, ReplyTo,
     mailbox::{Mailbox, MailboxHandle, TerminatedSink, Watcher, WatcherRegistry, make_mailbox},
 };
 use derive_more::Debug;
@@ -8,7 +8,9 @@ use std::{
     fmt::Display,
     hash::{Hash, Hasher},
     sync::Arc,
+    time::Duration,
 };
+use tokio::{sync::oneshot, time::timeout};
 use tracing::warn;
 
 /// A shareable reference to an actor, used to send it messages and read its ID.
@@ -36,6 +38,51 @@ impl<M> ActorRef<M> {
     pub fn tell(&self, message: M) {
         if let Err(error) = self.mailbox_handle.try_send_message(message) {
             self.dead_letter(&error);
+        }
+    }
+
+    /// Send a request to the actor represented by this reference and await the reply for at most
+    /// `within`. The given function builds the request message around a [ReplyTo] for the actor
+    /// to [ReplyTo::reply] to.
+    ///
+    /// Unlike [ActorRef::tell], failures are returned instead of only logged, since the caller is
+    /// awaiting: [AskError::MailboxFull] and [AskError::ActorTerminated] if the request cannot be
+    /// sent, [AskError::NoReply] once it is detected that no reply can arrive anymore and
+    /// [AskError::Timeout] once `within` has elapsed without a reply. The `NoReply` detection is
+    /// best-effort, which is why the wait is bounded: against e.g. a responder which keeps its
+    /// [ReplyTo] alive without replying, the ask resolves as `Timeout`; a late reply is dropped
+    /// and logged as a dead letter.
+    ///
+    /// For code outside of any actor, e.g. alongside [ActorSystem::terminated]; inside an actor
+    /// use [ActorContext::reply_to] instead of awaiting.
+    ///
+    /// [ActorContext::reply_to]: crate::ActorContext::reply_to
+    /// [ActorSystem::terminated]: crate::ActorSystem::terminated
+    pub async fn ask<R, F>(&self, within: Duration, make_message: F) -> Result<R, AskError>
+    where
+        F: FnOnce(ReplyTo<R>) -> M,
+        R: Send + 'static,
+    {
+        let actor_id = self.actor_id;
+        let (reply_tx, reply_rx) = oneshot::channel();
+
+        let reply_to = ReplyTo::new(move |reply| {
+            if reply_tx.send(reply).is_err() {
+                warn!(
+                    %actor_id,
+                    reply_type = type_name::<R>(),
+                    error = "asker no longer awaits the reply",
+                    "dead letter"
+                );
+            }
+        });
+
+        self.mailbox_handle
+            .try_send_message(make_message(reply_to))?;
+
+        match timeout(within, reply_rx).await {
+            Ok(reply) => reply.map_err(|_| AskError::NoReply),
+            Err(_) => Err(AskError::Timeout(within)),
         }
     }
 
