@@ -34,6 +34,9 @@ waltz is under active development: the API is unstable and the crate is not yet 
 - **Fire-and-forget messaging.** `ActorRef::tell` never blocks and delivers at most once;
   undeliverable messages are dropped and logged as dead letters (structured logging via `tracing`
   with fields).
+- **Request-response.** `ActorRef::ask` awaits a reply from outside the actor tree;
+  `ActorContext::reply_to` lets actors reply to each other through their ordinary mailboxes,
+  keeping actor code free of futures.
 - **Death watch with an ordering guarantee.** `ActorContext::watch` delivers a terminated signal
   which is ordered behind all messages the terminated actor has delivered to the watcher, hence
   receiving it proves the watcher has seen every message from that actor it will ever see.
@@ -122,7 +125,8 @@ handle it as part of the domain.
 
 `receive` is synchronous and runs on a Tokio worker: an actor cannot be stopped while `receive` is
 running, so a `receive` which never completes keeps all its ancestors from terminating. For long
-running or blocking work, spawn a task and send the result back via `ActorRef::tell`.
+running or blocking work, spawn a task and send the result back via `ActorRef::tell` or a
+`ReplyTo`.
 
 ### The actor tree and termination
 
@@ -138,6 +142,15 @@ resolves exactly when the entire tree has terminated.
 its bounded mailbox is full, the message is dropped and logged as a dead letter. Delivery does not
 imply processing: even a delivered message may go unprocessed if the actor stops before getting to
 it.
+
+Request-response builds on the same delivery: a request message carries a `ReplyTo`, a single-shot
+reply destination consumed by `reply`. From outside the actor tree, `ActorRef::ask` sends the
+request and awaits the reply, returning an `AskError` instead of only logging when the mailbox is
+full, the actor has terminated or it is detected that no reply can arrive anymore; that detection
+is best-effort, so every ask carries a timeout which resolves the future at the latest when it
+elapses. Between actors, `ActorContext::reply_to` creates a `ReplyTo` which delivers the
+reply into the asking actor's own mailbox, converted into its message type, so the reply arrives
+through `receive` like any other message.
 
 ### Watch
 

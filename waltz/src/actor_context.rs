@@ -1,5 +1,5 @@
 use crate::{
-    Actor, ActorConfig, ActorId, ActorRef, Control, Incoming, SupervisionStrategy,
+    Actor, ActorConfig, ActorId, ActorRef, Control, Incoming, ReplyTo, SupervisionStrategy,
     actor_ref::SelfRef,
     mailbox::{Mailbox, WatcherRegistry},
 };
@@ -70,6 +70,24 @@ impl<M> ActorContext<M> {
         A::State: Send + 'static,
     {
         spawn(self.stopping_rx.clone(), actor, config)
+    }
+
+    /// Create a [ReplyTo] which delivers the reply to this actor as an ordinary message,
+    /// converted by the given function, typically an enum variant constructor. This is the actor
+    /// side of request-response: no future is created or awaited, the reply arrives via
+    /// [Actor::receive] like any other message.
+    ///
+    /// The reply takes the same path as an [ActorRef::tell] to this actor: it counts against a
+    /// bounded mailbox capacity and is dropped and logged as a dead letter if this actor has
+    /// terminated or its mailbox is full.
+    pub fn reply_to<R, F>(&self, into_message: F) -> ReplyTo<R>
+    where
+        F: FnOnce(R) -> M + Send + 'static,
+        M: Send + 'static,
+        R: 'static,
+    {
+        let actor_ref = self.self_ref().clone();
+        ReplyTo::new(move |reply| actor_ref.tell(into_message(reply)))
     }
 
     /// Watch another actor, i.e. receive an [Incoming::Terminated] signal once that actor has
@@ -330,9 +348,11 @@ impl Display for PanicPayload<'_> {
     }
 }
 
-/// The state must already have been dropped by the caller; the channel is dropped first, so
-/// senders observe the termination while the children still stop; the watchers are signaled last,
-/// since a terminated signal must prove that the actor's destructors have run.
+/// The state must already have been dropped by the caller. The queued messages are moved out and
+/// the channel is dropped before their destructors run: senders observe the termination while the
+/// children still stop, and no user code runs in the window where a racing send can still slip
+/// past the drain (flume retains such a message until its last sender drops); the watchers are
+/// signaled last, since a terminated signal must prove that the actor's destructors have run.
 async fn terminate<A>(actor: A, mut context: ActorContext<A::Message>, mailbox: Mailbox<A::Message>)
 where
     A: Actor,
@@ -340,7 +360,11 @@ where
     let actor_id = context.self_ref().actor_id();
 
     let (incoming_rx, closed_mailbox) = mailbox.split();
+    let drained = incoming_rx.drain().collect::<Vec<_>>();
     drop_containing_panic(actor_id, "mailbox failed to drop", incoming_rx);
+    for incoming in drained {
+        drop_containing_panic(actor_id, "queued message failed to drop", incoming);
+    }
 
     for registry in context.take_watched().into_values() {
         registry.remove(actor_id);

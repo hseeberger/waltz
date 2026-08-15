@@ -14,12 +14,14 @@
 //! [SupervisionStrategy::Restart] rebuilds its state via [Actor::init], limited and paced by a
 //! [RestartPolicy].
 //!
-//! Actors are addressed by [ActorRef], which is used to [ActorRef::tell] them messages, and can
-//! observe each other via [ActorContext::watch], which delivers an [Incoming::Terminated] signal,
-//! and [ActorContext::unwatch], which reverts that. The signal is ordered behind all messages the
-//! terminated actor has delivered to the watcher, hence receiving it proves that the watcher has
-//! seen every message from that actor it will ever see: each arrived before the signal or was
-//! dropped as a dead letter.
+//! Actors are addressed by [ActorRef], which is used to [ActorRef::tell] them messages and to
+//! [ActorRef::ask] them requests from outside the actor tree, awaiting the reply; between actors,
+//! [ActorContext::reply_to] creates a [ReplyTo] which delivers the reply as an ordinary message
+//! instead. Actors can observe each other via [ActorContext::watch], which delivers an
+//! [Incoming::Terminated] signal, and [ActorContext::unwatch], which reverts that. The signal is
+//! ordered behind all messages the terminated actor has delivered to the watcher, hence receiving
+//! it proves that the watcher has seen every message from that actor it will ever see: each
+//! arrived before the signal or was dropped as a dead letter.
 
 #![warn(missing_docs)]
 
@@ -29,6 +31,7 @@ mod actor_context;
 mod actor_id;
 mod actor_ref;
 mod actor_system;
+mod ask;
 mod backoff;
 mod mailbox;
 mod quota;
@@ -41,5 +44,6 @@ pub use crate::{
     actor_id::ActorId,
     actor_ref::ActorRef,
     actor_system::{ActorSystem, Error},
+    ask::{AskError, ReplyTo},
     backoff::{Backoff, InvalidBackoff},
 };

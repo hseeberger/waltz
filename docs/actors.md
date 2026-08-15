@@ -17,6 +17,10 @@ waltz provides:
   actor stops its whole subtree, children first,
 - fire-and-forget, at-most-once messaging via [`ActorRef::tell`](../waltz/src/actor_ref.rs),
   with undeliverable messages dropped and logged as dead letters,
+- request-response on top of that delivery: [`ActorRef::ask`](../waltz/src/actor_ref.rs) awaits a
+  reply from outside the actor tree and
+  [`ActorContext::reply_to`](../waltz/src/actor_context.rs) lets actors reply to each other
+  through their ordinary mailboxes,
 - supervision: an actor failing with an error or a panic is stopped or restarted according to
   its [`SupervisionStrategy`](../waltz/src/actor_config.rs),
 - death watch with an ordering guarantee: a terminated signal arrives behind all messages the
@@ -131,6 +135,36 @@ Internally the sender is the mailbox's sending half. The reference an actor gets
 `ActorContext::self_ref` pairs it with that same half (`SelfRef` in
 [`actor_ref.rs`](../waltz/src/actor_ref.rs)), which the watch mechanics below rely on.
 
+## Request-response
+
+Request-response is built on top of `tell`-style delivery, not beside it. A request message
+carries a [`ReplyTo`](../waltz/src/ask.rs), a single-shot destination for the reply: the
+responder calls `reply` exactly once, enforced by consumption, and cannot tell how the `ReplyTo`
+was created. Both creators erase their delivery mechanism behind it, which also leaves room for
+further backings.
+
+[`ActorRef::ask`](../waltz/src/actor_ref.rs) is the boundary API, for code outside of any actor:
+`main`, tests, HTTP handlers, spawned tasks. The given function builds the request around a
+oneshot-backed `ReplyTo`, the request is sent like a tell, and the returned future resolves with
+the reply. Since the caller is awaiting, failures are returned instead of only logged:
+`AskError::MailboxFull` and `AskError::ActorTerminated` if the request cannot be sent,
+`AskError::NoReply` once it is detected that no reply can arrive anymore, i.e. when the `ReplyTo`
+was dropped without a reply or the actor stopped with the request still queued. That detection is
+best-effort, which is why every ask carries a timeout: `AskError::Timeout` resolves the future
+once the given duration has elapsed without a reply, e.g. against a responder which keeps the
+`ReplyTo` alive without replying; a late reply is dropped as a dead letter.
+
+[`ActorContext::reply_to`](../waltz/src/actor_context.rs) is the actor side: it creates a
+`ReplyTo` which delivers the reply into this actor's own mailbox, converted into its message
+type by the given function, typically an enum variant constructor. No future is created or
+awaited; the reply arrives through `receive` like any other message, in the normal mailbox FIFO.
+It takes the same path as a tell to this actor: it counts against a bounded capacity and becomes
+a dead letter if the asker has terminated or its mailbox is full.
+
+Supervision composes with the retained mailbox: a request queued behind a failing message
+survives a restart and is answered by the restarted state, while a request consumed by the
+failing `receive` itself is not redelivered and hence resolves as `NoReply`.
+
 ## Mailboxes
 
 [`mailbox.rs`](../waltz/src/mailbox.rs). A mailbox is a FIFO channel of `Incoming<M>` split into
@@ -197,6 +231,12 @@ The closed channel is the completion barrier: a child drops its receiver clone o
 ends, so the channel closing proves every child has terminated. Only then does the actor drop its
 own value and finally signal its watchers: a terminated signal must prove that the actor's
 destructors have run.
+
+The mailbox is drained and disconnected right at the start of the sequence: senders observe the
+termination while the children still stop, and the destructors of the drained messages run as
+part of it, so e.g. a queued request's reply channel resolves its ask as `NoReply` instead of
+pending forever. A send racing with the drain can still slip past it; such a message is retained
+until its last sender is dropped, which is why the `NoReply` detection is best-effort.
 
 ## Supervision and restarts
 
@@ -283,5 +323,6 @@ panic-free.
   watched actor's delivered messages and prove its destructors have run.
 - `receive` is synchronous and cannot await; long running or blocking work belongs in a
   spawned task reporting back via `tell`.
-- There is no built-in request-response: replies go through a `reply_to: ActorRef<..>` carried
-  in the message (see the examples).
+- Request-response is at-most-once too: `ask` resolves exactly once, with the reply or an error,
+  at the latest when its timeout elapses, and never redelivers; a `reply_to` reply is an ordinary
+  send, dropped as a dead letter if the asker is gone or its bounded mailbox is full.
