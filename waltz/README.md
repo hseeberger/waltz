@@ -223,19 +223,55 @@ max backoff 1s below min backoff 10s for key `supervision_strategy.backoff`
 
 ## Examples
 
+Ordered from minimal to real-world-ish, each building on the features of the previous ones. All
+examples print their results to stdout; those which set up logging log to stderr, with the log
+level configured via `RUST_LOG`.
+
 - [`hello`](examples/hello.rs): the getting started snippet above:
 
   ```shell
   cargo run --quiet -p waltz --example hello
   ```
 
+- [`counter`](examples/counter.rs): a counter actor showing the two send modes: `tell` fires
+  increments without awaiting anything, `ask` sends a request carrying a `ReplyTo` and awaits the
+  reply under a timeout:
+
+  ```shell
+  cargo run --quiet -p waltz --example counter
+  ```
+
 - [`scatter_gather`](examples/scatter_gather.rs): a root actor scatters a workload across worker
-  actors and gathers their partial results, using the watch ordering guarantee to know when all
-  results are in. It prints the total to stdout and logs to stderr; the log level is configured
-  via `RUST_LOG`:
+  actors and gathers their partial results, requested via `ActorContext::reply_to` and completed
+  using the watch ordering guarantee to know when all results are in:
 
   ```shell
   RUST_LOG=waltz=debug cargo run --quiet -p waltz --example scatter_gather
+  ```
+
+- [`supervision`](examples/supervision.rs): a flaky worker under the `Restart` supervision
+  strategy, showing what a backoff-paced restart rebuilds (the state, via `init`) and what it
+  retains (the actor value and the mailbox):
+
+  ```shell
+  RUST_LOG=waltz=debug cargo run --quiet -p waltz --example supervision
+  ```
+
+- [`work_pulling`](examples/work_pulling.rs): workers request jobs from a manager whenever they
+  are ready, so a bounded mailbox of capacity one suffices: backpressure by design, without
+  dropping work:
+
+  ```shell
+  RUST_LOG=waltz=debug cargo run --quiet -p waltz --example work_pulling
+  ```
+
+- [`device_manager`](examples/device_manager.rs): waltz's take on Akka's IoT device manager and
+  the capstone of this list: a dynamic actor hierarchy with watch-based registry pruning, `ask` at
+  the async boundary, a per-request query child aggregating device replies exactly thanks to the
+  ordering guarantee, and restarting devices:
+
+  ```shell
+  RUST_LOG=waltz=debug cargo run --quiet -p waltz --example device_manager
   ```
 
 ## License

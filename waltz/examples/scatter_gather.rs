@@ -1,8 +1,8 @@
 //! In this example the root actor scatters a workload across worker actors and gathers their
-//! partial results: each worker sums up its shard, tells the result back and stops. The root
-//! watches its workers; a terminated signal is ordered behind everything the terminated actor has
-//! delivered to the watcher, so receiving one proves that worker's partial result has already been
-//! added.
+//! partial results: each request carries a `ReplyTo` created via `ActorContext::reply_to`, so each
+//! worker sums up its shard, replies the result and stops. The root watches its workers; a
+//! terminated signal is ordered behind everything the terminated actor has delivered to the
+//! watcher, so receiving one proves that worker's partial result has already been added.
 //! Hence, once all workers have terminated, the root can print the total and stop, which terminates
 //! the actor system.
 //!
@@ -12,7 +12,7 @@
 use anyhow::Context;
 use std::{convert::Infallible, io, ops::Range};
 use tracing_subscriber::{EnvFilter, layer::SubscriberExt, util::SubscriberInitExt};
-use waltz::{Actor, ActorContext, ActorRef, ActorSystem, Control, Incoming};
+use waltz::{Actor, ActorContext, ActorSystem, Control, Incoming, ReplyTo};
 
 const SHARDS: [Range<u64>; 4] = [1..26, 26..51, 51..76, 76..101];
 
@@ -51,9 +51,10 @@ impl Actor for Gatherer {
         for shard in SHARDS {
             let worker = context.spawn(Worker);
             context.watch(&worker);
+
             worker.tell(Compute {
                 shard,
-                reply_to: context.self_ref().clone(),
+                reply_to: context.reply_to(Partial),
             });
         }
 
@@ -121,7 +122,7 @@ impl Actor for Worker {
         let (start, end) = (shard.start, shard.end);
         let sum = shard.sum::<u64>();
         println!("## Shard {start}..{end} sums up to: {sum}");
-        reply_to.tell(Partial(sum));
+        reply_to.reply(sum);
 
         Ok(Control::Stop)
     }
@@ -129,5 +130,5 @@ impl Actor for Worker {
 
 struct Compute {
     shard: Range<u64>,
-    reply_to: ActorRef<Partial>,
+    reply_to: ReplyTo<u64>,
 }

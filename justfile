@@ -86,5 +86,17 @@ comparison-lint:
 run-examples-hello:
     cargo run -p waltz --example hello
 
+run-examples-counter:
+    cargo run -p waltz --example counter
+
 run-examples-scatter-gather:
     RUST_LOG=waltz=debug cargo run -p waltz --example scatter_gather
+
+run-examples-supervision:
+    RUST_LOG=waltz=debug cargo run -p waltz --example supervision
+
+run-examples-work-pulling:
+    RUST_LOG=waltz=debug cargo run -p waltz --example work_pulling
+
+run-examples-device-manager:
+    RUST_LOG=waltz=debug cargo run -p waltz --example device_manager
