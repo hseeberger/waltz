@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1786982284583,
+  "lastUpdate": 1786984039602,
   "repoUrl": "https://github.com/hseeberger/waltz",
   "entries": {
     "Benchmark": [
@@ -779,6 +779,66 @@ window.BENCHMARK_DATA = {
             "name": "fan_out/workers/16",
             "value": 3515752,
             "range": "± 14029",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "git@heikoseeberger.de",
+            "name": "Heiko Seeberger",
+            "username": "hseeberger"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "095b1d52e3cad5924319cb91b81a52665014f99f",
+          "message": "Merge pull request #16 from hseeberger/docs/examples\n\ndocs: add examples from counter to device manager",
+          "timestamp": "2026-08-17T18:25:55+02:00",
+          "tree_id": "3d8827510626c2a0553551ffd9b44718b590e206",
+          "url": "https://github.com/hseeberger/waltz/commit/095b1d52e3cad5924319cb91b81a52665014f99f"
+        },
+        "date": 1786984038835,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "flood/unbounded",
+            "value": 21600100,
+            "range": "± 830832",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "flood/bounded",
+            "value": 40506826,
+            "range": "± 3168950",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ping_pong/pairs/1",
+            "value": 683691,
+            "range": "± 2433",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ping_pong/pairs/4",
+            "value": 825355,
+            "range": "± 4577",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "fan_out/workers/4",
+            "value": 9221456,
+            "range": "± 817799",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "fan_out/workers/16",
+            "value": 6042324,
+            "range": "± 198997",
             "unit": "ns/iter"
           }
         ]
