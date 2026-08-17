@@ -69,10 +69,7 @@ async fn ask_a_full_mailbox_fails_as_full() {
         unblock_rx,
         blocked_tx,
     };
-    let config = ActorConfig {
-        mailbox_capacity: BOUNDED_TO_ONE,
-        ..Default::default()
-    };
+    let config = ActorConfig::default().with_mailbox_capacity(BOUNDED_TO_ONE);
     let system = ActorSystem::with_config(root, config);
 
     system.root().tell(BlockedRequest::Block);
@@ -279,10 +276,7 @@ async fn a_reply_to_a_full_asker_mailbox_is_a_dead_letter() {
         reply_to_tx,
         observed_tx,
     };
-    let config = ActorConfig {
-        mailbox_capacity: BOUNDED_TO_ONE,
-        ..Default::default()
-    };
+    let config = ActorConfig::default().with_mailbox_capacity(BOUNDED_TO_ONE);
     let system = ActorSystem::with_config(root, config);
 
     let reply_to = recv(
@@ -328,14 +322,11 @@ where
 }
 
 fn restart_config() -> ActorConfig {
-    ActorConfig {
-        supervision_strategy: SupervisionStrategy::Restart(RestartPolicy {
-            max_restarts: NonZeroU32::MIN,
-            backoff: Backoff::new(Duration::ZERO, Duration::ZERO).expect("the bounds are ordered"),
-            reset_after: Duration::ZERO,
-        }),
-        ..Default::default()
-    }
+    ActorConfig::default().with_supervision_strategy(SupervisionStrategy::Restart(RestartPolicy {
+        max_restarts: NonZeroU32::MIN,
+        backoff: Backoff::new(Duration::ZERO, Duration::ZERO).expect("the bounds are ordered"),
+        reset_after: Duration::ZERO,
+    }))
 }
 
 /// Reply with the doubled value, from `receive` or a spawned task, discard the request or stop,

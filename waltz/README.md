@@ -178,10 +178,7 @@ logged at error level either way.
 `ActorConfig` currently holds the mailbox capacity and the supervision strategy:
 
 ```rust
-let config = ActorConfig {
-    mailbox_capacity: MailboxCapacity::Bounded(NonZeroUsize::MIN),
-    ..Default::default()
-};
+let config = ActorConfig::default().with_mailbox_capacity(MailboxCapacity::Bounded(NonZeroUsize::MIN));
 let child = context.spawn_with_config(actor, config);
 ```
 
