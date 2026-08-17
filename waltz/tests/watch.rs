@@ -46,10 +46,7 @@ async fn watch_after_terminated_still_signals() {
 async fn terminated_signal_survives_a_full_mailbox() {
     let (terminated_tx, _terminated_rx) = mpsc::channel(1);
     let root = Watcher(terminated_tx);
-    let config = ActorConfig {
-        mailbox_capacity: BOUNDED_TO_ONE,
-        ..Default::default()
-    };
+    let config = ActorConfig::default().with_mailbox_capacity(BOUNDED_TO_ONE);
     let system = ActorSystem::with_config(root, config);
 
     // Sent while the mailbox is still empty, hence not dropped.

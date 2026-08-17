@@ -22,6 +22,25 @@ pub struct ActorConfig {
     pub supervision_strategy: SupervisionStrategy,
 }
 
+impl ActorConfig {
+    /// This config, sizing the actor's mailbox by the given [MailboxCapacity].
+    pub fn with_mailbox_capacity(self, mailbox_capacity: MailboxCapacity) -> Self {
+        Self {
+            mailbox_capacity,
+            ..self
+        }
+    }
+
+    /// This config, deciding by the given [SupervisionStrategy] what happens if the actor has
+    /// failed.
+    pub fn with_supervision_strategy(self, supervision_strategy: SupervisionStrategy) -> Self {
+        Self {
+            supervision_strategy,
+            ..self
+        }
+    }
+}
+
 /// The capacity of an actor's mailbox.
 #[derive(Debug, Default, Clone, Copy)]
 #[cfg_attr(
@@ -109,6 +128,19 @@ impl RestartPolicy {
             reset_after: Self::DEFAULT_RESET_AFTER,
         }
     }
+
+    /// This policy, pacing the restarts of a streak by the given [Backoff].
+    pub fn with_backoff(self, backoff: Backoff) -> Self {
+        Self { backoff, ..self }
+    }
+
+    /// This policy, ending a streak once the actor has run this long without failing.
+    pub fn with_reset_after(self, reset_after: Duration) -> Self {
+        Self {
+            reset_after,
+            ..self
+        }
+    }
 }
 
 #[cfg(feature = "serde")]
@@ -118,8 +150,11 @@ fn default_reset_after() -> Duration {
 
 #[cfg(test)]
 mod tests {
-    use crate::{Backoff, RestartPolicy};
-    use std::num::NonZeroU32;
+    use crate::{ActorConfig, Backoff, MailboxCapacity, RestartPolicy, SupervisionStrategy};
+    use std::{
+        num::{NonZeroU32, NonZeroUsize},
+        time::Duration,
+    };
 
     /// A new policy is paced by the defaults its documentation names, so a caller only has to
     /// overwrite what it wants to differ.
@@ -132,14 +167,44 @@ mod tests {
         assert_eq!(policy.reset_after, RestartPolicy::DEFAULT_RESET_AFTER);
     }
 
+    /// Each setter overwrites its own field and leaves the others as they were.
+    #[test]
+    fn a_config_setter_only_overwrites_its_own_field() {
+        let config = ActorConfig::default()
+            .with_mailbox_capacity(MailboxCapacity::Bounded(NonZeroUsize::MIN))
+            .with_supervision_strategy(SupervisionStrategy::Restart(RestartPolicy::new(
+                NonZeroU32::MIN,
+            )));
+
+        assert!(matches!(
+            config.mailbox_capacity,
+            MailboxCapacity::Bounded(capacity) if capacity == NonZeroUsize::MIN
+        ));
+        assert!(matches!(
+            config.supervision_strategy,
+            SupervisionStrategy::Restart(_)
+        ));
+    }
+
+    /// Each setter overwrites its own field and leaves the others as they were.
+    #[test]
+    fn a_policy_setter_only_overwrites_its_own_field() {
+        let backoff = Backoff::new(Duration::ZERO, Duration::ZERO).expect("the bounds are ordered");
+        let policy = RestartPolicy::new(NonZeroU32::MIN)
+            .with_backoff(backoff)
+            .with_reset_after(Duration::ZERO);
+
+        assert_eq!(policy.max_restarts, NonZeroU32::MIN);
+        assert_eq!(policy.backoff.min(), Duration::ZERO);
+        assert_eq!(policy.backoff.max(), Duration::ZERO);
+        assert_eq!(policy.reset_after, Duration::ZERO);
+    }
+
     /// The snake_case variant names, the per-field defaults and the humantime duration format are
     /// a public configuration surface; this pins it down.
     #[cfg(feature = "serde")]
     #[test]
     fn a_config_deserializes_from_its_documented_form() {
-        use crate::{ActorConfig, MailboxCapacity, SupervisionStrategy};
-        use std::time::Duration;
-
         let config = serde_json::from_str::<ActorConfig>(
             r#"{
                 "mailbox_capacity": { "bounded": 42 },
@@ -166,8 +231,6 @@ mod tests {
     #[cfg(feature = "serde")]
     #[test]
     fn deserializing_rejects_unknown_fields() {
-        use crate::ActorConfig;
-
         let config =
             serde_json::from_str::<ActorConfig>(r#"{ "mailbox_capacty": { "bounded": 42 } }"#);
         assert!(config.is_err());

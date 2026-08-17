@@ -43,10 +43,7 @@ fn flood(c: &mut Criterion) {
                         let actor = Countdown {
                             messages: FLOOD_MESSAGES,
                         };
-                        let config = ActorConfig {
-                            mailbox_capacity,
-                            ..Default::default()
-                        };
+                        let config = ActorConfig::default().with_mailbox_capacity(mailbox_capacity);
                         (actor, config)
                     },
                     |root| {

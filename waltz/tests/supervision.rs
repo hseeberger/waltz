@@ -334,10 +334,7 @@ fn counter(fail: FailureTrigger) -> (Counter, mpsc::Receiver<u32>) {
 }
 
 fn config(supervision_strategy: SupervisionStrategy) -> ActorConfig {
-    ActorConfig {
-        supervision_strategy,
-        ..Default::default()
-    }
+    ActorConfig::default().with_supervision_strategy(supervision_strategy)
 }
 
 /// A restart policy pacing restarts, for the tests which observe the backoff itself.
