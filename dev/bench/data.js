@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1786795074969,
+  "lastUpdate": 1786982284583,
   "repoUrl": "https://github.com/hseeberger/waltz",
   "entries": {
     "Benchmark": [
@@ -719,6 +719,66 @@ window.BENCHMARK_DATA = {
             "name": "fan_out/workers/16",
             "value": 3544978,
             "range": "± 16802",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "git@heikoseeberger.de",
+            "name": "Heiko Seeberger",
+            "username": "hseeberger"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "5c7a1501e4aaea85adfe0493df142a1f82513c64",
+          "message": "Merge pull request #17 from hseeberger/feat/config-setters\n\nfeat: add with_* setters to ActorConfig and RestartPolicy",
+          "timestamp": "2026-08-17T17:55:19+02:00",
+          "tree_id": "2a543c7ac7a6e6df12f0b33aa03831884218864b",
+          "url": "https://github.com/hseeberger/waltz/commit/5c7a1501e4aaea85adfe0493df142a1f82513c64"
+        },
+        "date": 1786982283429,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "flood/unbounded",
+            "value": 9585400,
+            "range": "± 226338",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "flood/bounded",
+            "value": 14859562,
+            "range": "± 83405",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ping_pong/pairs/1",
+            "value": 663907,
+            "range": "± 8406",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ping_pong/pairs/4",
+            "value": 799483,
+            "range": "± 67899",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "fan_out/workers/4",
+            "value": 4914332,
+            "range": "± 128004",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "fan_out/workers/16",
+            "value": 3515752,
+            "range": "± 14029",
             "unit": "ns/iter"
           }
         ]
