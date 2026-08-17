@@ -10,7 +10,9 @@ use waltz::{Actor, ActorContext, ActorSystem, Control, Incoming};
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let system = ActorSystem::new(Greeter);
+
     system.root().tell(Greet("Waltz".to_string()));
+
     system
         .terminated()
         .await
