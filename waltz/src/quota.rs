@@ -89,7 +89,7 @@ impl Quota {
         };
 
         count
-            .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |current| {
+            .try_update(Ordering::Relaxed, Ordering::Relaxed, |current| {
                 (current < capacity.get()).then_some(current + 1)
             })
             .map(|_| Reservation(Some(self)))
