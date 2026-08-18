@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1786984039602,
+  "lastUpdate": 1787068185770,
   "repoUrl": "https://github.com/hseeberger/waltz",
   "entries": {
     "Benchmark": [
@@ -839,6 +839,66 @@ window.BENCHMARK_DATA = {
             "name": "fan_out/workers/16",
             "value": 6042324,
             "range": "± 198997",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "git@heikoseeberger.de",
+            "name": "Heiko Seeberger",
+            "username": "hseeberger"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "73a23faf806c21fff66221ffa35488828ecbb327",
+          "message": "Merge pull request #18 from hseeberger/chore/depr\n\nchore: replace deprecated Atomic::fetch_update with try_update",
+          "timestamp": "2026-08-18T17:48:17+02:00",
+          "tree_id": "fba7b7280ba3a3aa886356823255245baec559b6",
+          "url": "https://github.com/hseeberger/waltz/commit/73a23faf806c21fff66221ffa35488828ecbb327"
+        },
+        "date": 1787068184793,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "flood/unbounded",
+            "value": 22716876,
+            "range": "± 1554328",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "flood/bounded",
+            "value": 18134436,
+            "range": "± 105643",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ping_pong/pairs/1",
+            "value": 908995,
+            "range": "± 12040",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ping_pong/pairs/4",
+            "value": 1163458,
+            "range": "± 10162",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "fan_out/workers/4",
+            "value": 8428170,
+            "range": "± 258699",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "fan_out/workers/16",
+            "value": 8228173,
+            "range": "± 255607",
             "unit": "ns/iter"
           }
         ]
