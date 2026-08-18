@@ -6,8 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Tasks are defined in the [justfile](justfile):
 
-- `just all`: check, fmt, lint, test and doc; the full local gate for the `waltz` crate.
-- `just check` / `just lint` / `just test` / `just doc`: the individual steps, all scoped to `-p waltz` and each run twice, with the `serde` feature off and on.
+- `just all`: check, fmt, lint, test and doc; the full local gate for every crate except `waltz-comparison`. The `waltz-persistence-postgres` tests use testcontainers, so the gate needs Docker.
+- `just check` / `just lint` / `just test`: the individual steps, each a feature matrix, every run scoped to one crate: five runs of `-p waltz` (no features, `serde`, `persistence`, `persistence-tests`, all features) plus one of `-p waltz-persistence-postgres`. No run spans the workspace: a build containing both crates feature-unifies `waltz` with `persistence` enabled, so only scoped runs exercise the reduced-feature configurations, and only a scoped run builds `waltz-persistence-postgres` against the feature set it actually declares. `just doc` runs workspace-wide with all features.
 - `just fmt`: formats Rust (nightly rustfmt, the justfile derives the matching nightly from the installed stable) and TOML (taplo). Plain `cargo fmt` is not enough; the rustfmt config uses unstable options.
 - Single test: `cargo test -p waltz --test watch <test_name>` (integration tests live in `waltz/tests/`: `supervision.rs`, `termination.rs`, `watch.rs`).
 - Examples: `just run-examples-hello`, `just run-examples-scatter-gather`.
@@ -22,8 +22,12 @@ CI enforces that a PR consists of exactly one commit; squash before pushing.
 ## Workspace layout
 
 - `waltz/`: the actor framework, the only published-facing crate.
+- `waltz-persistence-postgres/`: the PostgreSQL stores (`PostgresStore` implements `EventStore` and `SnapshotStore`). Tests need Docker (testcontainers) and run as part of `just all`; their image tag and credentials come from the root `docker-compose.yaml` via `composed`, so there is one place to change either. Examples via `just run-postgres-examples-event-sourced-counter` and `just run-postgres-examples-event-sourced-supervision`, which start the `postgres` service from the root `docker-compose.yaml`; `docker compose down` stops it, `down -v` resets the data.
+- `waltz/src/persistence_tests.rs` (feature `persistence-tests`, implies `persistence`): the contract test suite for persistence stores; backend crates run it from their integration tests against real servers. `waltz/tests/persistence_tests.rs` validates the suite itself against a minimal in-memory store.
+- `composed`: a crates.io dependency which reads image name, tag and environment variables out of a `docker-compose.yaml` at compile time, so testcontainers-based tests use the same image version and credentials as the local stack instead of hardcoding them. `waltz-persistence-postgres/tests/store.rs` holds it in a `static COMPOSE: LazyLock<Compose>` built by the `compose!` macro, whose path argument is relative to the *calling* crate's manifest. Lookups panic like assertions, naming the compose file. Deliberately exposes no `ports` or `command`: tests use the port testcontainers maps.
 - `waltz-comparison/`: competitive benchmarks with strict fairness rules (unbounded mailboxes everywhere, fire-and-forget sends only, identical timing boundaries); read its README before changing any benchmark.
 - `docs/actors.md`: the authoritative top-down explanation of the core, from the `Actor` trait to the run loop, with links into the implementation. Read it before changing `waltz/src`; keep it consistent with implementation changes.
+- `docs/persistence.md`: the equally authoritative contract of event-sourced persistence (feature `persistence`, `waltz/src/persistence/`): replay equals live execution, effects gated on durability, strict per-command settlement, fencing via conditional append, schema evolution via manifest plus schema version. `waltz/tests/persistence.rs` encodes these guarantees.
 - `mentor/`: generated code-review artifacts, not source code.
 
 ## Architecture

@@ -46,6 +46,10 @@ waltz is under active development: the API is unstable and the crate is not yet 
   terminates it.
 - **Bounded or unbounded mailboxes.** Bounded mailboxes drop messages beyond capacity as dead
   letters, but terminated signals are never dropped.
+- **Event-sourced persistence (feature `persistence`).** An actor can persist what happened
+  instead of what its state is: events are appended to a pluggable store and only then applied,
+  the state is recovered by replay, optionally shortcut by snapshots, and conditional appends
+  fence concurrent incarnations.
 
 ## Getting started
 
@@ -220,6 +224,19 @@ invalid pair is unrepresentable whether it comes from code or from a file:
 ```text
 max backoff 1s below min backoff 10s for key `supervision_strategy.backoff`
 ```
+
+### Event-sourced persistence
+
+With the `persistence` feature, an actor can be event sourced by implementing `EventSourced`
+instead of `Actor` and spawning it via `ActorSystem::event_sourced` or
+`ActorContext::spawn_event_sourced`: `handle` validates a command against the current state and
+returns an `Effect` naming the events it causes, the events are appended to an `EventStore` and
+only then folded into the state by `apply`, and after a crash or a restart the state is recovered
+by replaying the events, optionally shortcut by snapshots. The stores are pluggable;
+[`waltz-persistence-postgres`](../waltz-persistence-postgres) provides PostgreSQL-backed ones, and
+the `persistence-tests` feature adds the contract test suite any store implementation must pass,
+meant for a backend crate's integration tests. For the guarantees, from replay equals live
+execution to fencing and schema evolution, see [docs/persistence.md](../docs/persistence.md).
 
 ## Examples
 

@@ -6,11 +6,15 @@ nightly := `rustc --version | grep -oE '[0-9]{4}-[0-9]{2}-[0-9]{2}' | sed 's/^/n
 bench_regression_threshold := "0.15"
 
 check:
-    cargo check -p waltz --all-targets
-    cargo check -p waltz --all-targets --features serde
+    cargo check -p waltz                      --all-targets
+    cargo check -p waltz                      --all-targets --features serde
+    cargo check -p waltz                      --all-targets --features persistence
+    cargo check -p waltz                      --all-targets --features persistence-tests
+    cargo check -p waltz                      --all-targets --all-features
+    cargo check -p waltz-persistence-postgres --all-targets
 
 fix:
-    cargo fix -p waltz --all-targets --allow-dirty --allow-staged
+    cargo fix --all-targets --allow-dirty --allow-staged
 
 fmt:
     cargo +{{ nightly }} fmt
@@ -20,18 +24,26 @@ fmt-check:
     cargo +{{ nightly }} fmt --check
 
 lint:
-    cargo clippy -p waltz --all-targets --no-deps                  -- -D warnings
-    cargo clippy -p waltz --all-targets --no-deps --features serde -- -D warnings
+    cargo clippy -p waltz                      --all-targets --no-deps                              -- -D warnings
+    cargo clippy -p waltz                      --all-targets --no-deps --features serde             -- -D warnings
+    cargo clippy -p waltz                      --all-targets --no-deps --features persistence       -- -D warnings
+    cargo clippy -p waltz                      --all-targets --no-deps --features persistence-tests -- -D warnings
+    cargo clippy -p waltz                      --all-targets --no-deps --all-features               -- -D warnings
+    cargo clippy -p waltz-persistence-postgres --all-targets --no-deps                              -- -D warnings
 
 lint-fix:
-    cargo clippy -p waltz --all-targets --no-deps --allow-dirty --allow-staged --fix
+    cargo clippy --all-targets --no-deps --allow-dirty --allow-staged --fix
 
 test:
     cargo test -p waltz
-    cargo test -p waltz --features serde
+    cargo test -p waltz                      --features serde
+    cargo test -p waltz                      --features persistence
+    cargo test -p waltz                      --features persistence-tests
+    cargo test -p waltz                      --all-features
+    cargo test -p waltz-persistence-postgres
 
 doc:
-    RUSTDOCFLAGS="-D warnings" cargo +{{ nightly }} doc -p waltz --no-deps --all-features
+    RUSTDOCFLAGS="-D warnings" cargo +{{ nightly }} doc --no-deps --all-features
 
 all: check fmt lint test doc
 
@@ -100,3 +112,11 @@ run-examples-work-pulling:
 
 run-examples-device-manager:
     RUST_LOG=waltz=debug cargo run -p waltz --example device_manager
+
+run-examples-event-sourced-counter:
+    docker compose up -d --wait postgres
+    RUST_LOG=waltz=debug cargo run -p waltz-persistence-postgres --example event_sourced_counter
+
+run-examples-event-sourced-supervision:
+    docker compose up -d --wait postgres
+    RUST_LOG=waltz=debug cargo run -p waltz-persistence-postgres --example event_sourced_supervision

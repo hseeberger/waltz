@@ -5,7 +5,7 @@ use crate::{
 use derive_more::Debug;
 use std::{
     any::type_name,
-    fmt::Display,
+    error::Error,
     hash::{Hash, Hasher},
     sync::Arc,
     time::Duration,
@@ -97,11 +97,12 @@ impl<M> ActorRef<M> {
         }
     }
 
-    fn dead_letter(&self, error: &dyn Display) {
+    fn dead_letter(&self, error: &dyn Error) {
         warn!(
             actor_id = %self.actor_id,
             message_type = type_name::<M>(),
             %error,
+            source = error.source(),
             "dead letter"
         );
     }

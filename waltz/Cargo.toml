@@ -14,21 +14,27 @@ publish       = { workspace = true }
 all-features = true
 
 [features]
-serde = [ "dep:humantime-serde", "dep:serde" ]
+persistence       = [ "dep:ciborium", "dep:serde", "dep:serde_json", "dep:trait-variant" ]
+persistence-tests = [ "persistence" ]
+serde             = [ "dep:humantime-serde", "dep:serde" ]
 
 [dependencies]
+ciborium        = { workspace = true, optional = true }
 derive_more     = { workspace = true, features = [ "debug", "display", "into" ] }
 flume           = { workspace = true, features = [ "async" ] }
 humantime-serde = { workspace = true, optional = true }
 serde           = { workspace = true, features = [ "derive" ], optional = true }
+serde_json      = { workspace = true, optional = true }
 thiserror       = { workspace = true }
 tokio           = { workspace = true, features = [ "macros", "rt", "sync", "time" ] }
 tracing         = { workspace = true }
+trait-variant   = { workspace = true, optional = true }
 uuid            = { workspace = true, features = [ "v7" ] }
 
 [dev-dependencies]
 anyhow             = { workspace = true }
 criterion          = { workspace = true, features = [ "async_tokio" ] }
+serde              = { workspace = true, features = [ "derive" ] }
 serde_json         = { workspace = true }
 tracing-subscriber = { workspace = true, features = [ "env-filter", "fmt", "json" ] }
 tokio              = { workspace = true, features = [ "macros", "rt-multi-thread", "test-util", "time" ] }
