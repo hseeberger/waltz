@@ -71,7 +71,7 @@ where
 #[derive(Debug, Error)]
 pub enum Error {
     /// Unexpected failure during watching the root actor.
-    #[error("unexpected failure during watching root actor")]
+    #[error("root watch failed unexpectedly")]
     WatchRoot(#[from] oneshot::error::RecvError),
 }
 
