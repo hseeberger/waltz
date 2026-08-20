@@ -1,5 +1,5 @@
 window.BENCHMARK_DATA = {
-  "lastUpdate": 1787068185770,
+  "lastUpdate": 1787212964051,
   "repoUrl": "https://github.com/hseeberger/waltz",
   "entries": {
     "Benchmark": [
@@ -899,6 +899,66 @@ window.BENCHMARK_DATA = {
             "name": "fan_out/workers/16",
             "value": 8228173,
             "range": "± 255607",
+            "unit": "ns/iter"
+          }
+        ]
+      },
+      {
+        "commit": {
+          "author": {
+            "email": "git@heikoseeberger.de",
+            "name": "Heiko Seeberger",
+            "username": "hseeberger"
+          },
+          "committer": {
+            "email": "noreply@github.com",
+            "name": "GitHub",
+            "username": "web-flow"
+          },
+          "distinct": true,
+          "id": "b9d1cdc38ac3b1287f4b333bc73c9dde4ba91fe1",
+          "message": "Merge pull request #22 from hseeberger/chore/root-watch-error\n\nchore: shorten root watch error message",
+          "timestamp": "2026-08-20T10:00:58+02:00",
+          "tree_id": "2252a19df51cfa1d6cf4ba9d3d6eb662ec3841ca",
+          "url": "https://github.com/hseeberger/waltz/commit/b9d1cdc38ac3b1287f4b333bc73c9dde4ba91fe1"
+        },
+        "date": 1787212963044,
+        "tool": "cargo",
+        "benches": [
+          {
+            "name": "flood/unbounded",
+            "value": 24496753,
+            "range": "± 3128815",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "flood/bounded",
+            "value": 37755963,
+            "range": "± 447201",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ping_pong/pairs/1",
+            "value": 672514,
+            "range": "± 4651",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "ping_pong/pairs/4",
+            "value": 796614,
+            "range": "± 10797",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "fan_out/workers/4",
+            "value": 8443620,
+            "range": "± 523220",
+            "unit": "ns/iter"
+          },
+          {
+            "name": "fan_out/workers/16",
+            "value": 5823044,
+            "range": "± 147337",
             "unit": "ns/iter"
           }
         ]
