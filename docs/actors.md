@@ -131,8 +131,10 @@ UUID v7, so IDs are unique and time-ordered) with a sender, and is cheap to clon
 dropped and logged as a dead letter with the actor ID and message type. Even a delivered message
 may go unprocessed if the actor stops first: delivery is at-most-once, end to end.
 
-Internally the sender is the mailbox's sending half. The reference an actor gets for itself via
-`ActorContext::self_ref` pairs it with that same half (`SelfRef` in
+Internally the sender is the mailbox's sending half; with the `remote` feature it can instead be
+a remote sink forwarding to an actor on another node (see the `waltz::remote` module docs), which
+also makes `ActorRef` serializable. The reference an actor gets for itself via
+`ActorContext::self_ref` pairs it with the mailbox's sending half (`SelfRef` in
 [`actor_ref.rs`](../waltz/src/actor_ref.rs)), which the watch mechanics below rely on.
 
 ## Request-response
@@ -164,6 +166,11 @@ a dead letter if the asker has terminated or its mailbox is full.
 Supervision composes with the retained mailbox: a request queued behind a failing message
 survives a restart and is answered by the restarted state, while a request consumed by the
 failing `receive` itself is not redelivered and hence resolves as `NoReply`.
+
+With the `remote` feature a `ReplyTo` is serializable and travels inside messages to other
+nodes, so both `ask` and `reply_to` work against remote actors through the same API;
+[remoting.md](remoting.md) spells out which parts of this contract carry over the wire and where
+the `NoReply` detection weakens further.
 
 ## Mailboxes
 
@@ -275,6 +282,10 @@ signal only if its sender is still watched, consuming the watch, so a stale sign
 before `receive` ever sees it. The same watcher-side bookkeeping deregisters a terminating actor
 from everything it still watches.
 
+With the `remote` feature an actor on another node can be watched the same way; a synthesized
+signal for a dead node then carries a weaker contract, spelled out in
+[remoting.md](remoting.md).
+
 A watcher (in [`mailbox.rs`](../waltz/src/mailbox.rs)) is essentially a sending handle into the
 watching actor's own mailbox, handed to the watched actor. At termination, after its destructors
 have run, the watched actor sends the terminated signal through it: into the same FIFO channel as
@@ -326,3 +337,5 @@ panic-free.
 - Request-response is at-most-once too: `ask` resolves exactly once, with the reply or an error,
   at the latest when its timeout elapses, and never redelivers; a `reply_to` reply is an ordinary
   send, dropped as a dead letter if the asker is gone or its bounded mailbox is full.
+- These guarantees are stated for actors in one process; [remoting.md](remoting.md) spells out
+  how they extend to actors on other nodes and where they weaken.

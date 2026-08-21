@@ -1,6 +1,6 @@
 use crate::{
     Actor, ActorConfig, ActorId, ActorRef, Control, Incoming, ReplyTo, SupervisionStrategy,
-    actor_ref::SelfRef,
+    actor_ref::{SelfRef, WatchTarget},
     mailbox::{Mailbox, WatcherRegistry},
 };
 use derive_more::Debug;
@@ -37,7 +37,7 @@ pub struct ActorContext<M> {
     stopping_rx: watch::Receiver<()>,
 
     #[debug(skip)]
-    watched: RefCell<HashMap<ActorId, WatcherRegistry>>,
+    watched: RefCell<HashMap<ActorId, Watched>>,
 }
 
 impl<M> ActorContext<M> {
@@ -87,7 +87,9 @@ impl<M> ActorContext<M> {
         R: 'static,
     {
         let actor_ref = self.self_ref().clone();
-        ReplyTo::new(move |reply| actor_ref.tell(into_message(reply)))
+        ReplyTo::new(actor_ref.actor_id(), move |reply| {
+            actor_ref.tell(into_message(reply))
+        })
     }
 
     /// Watch another actor, i.e. receive an [Incoming::Terminated] signal once that actor has
@@ -98,14 +100,37 @@ impl<M> ActorContext<M> {
     /// hence receiving it proves that this actor has seen every message from the other one it will
     /// ever see: each arrived before the signal or was dropped as a dead letter.
     ///
+    /// With the `remote` feature the other actor may live on another node: a terminated signal
+    /// received from there keeps the ordering guarantee, but one synthesized because the node
+    /// was declared dead only proves that no further message from that actor will ever be
+    /// received; see docs/remoting.md for the exact contract.
+    ///
     /// [Incoming::Terminated]: crate::Incoming::Terminated
     pub fn watch<N>(&self, other: &ActorRef<N>) {
-        let registry = other.watcher_registry().clone();
-        let registration = registry.add(self.self_ref.make_watcher());
-        self.watched.borrow_mut().insert(other.actor_id(), registry);
+        match other.watch_target() {
+            WatchTarget::Local(registry) => {
+                let registry = registry.clone();
+                let registration = registry.add(self.self_ref.make_watcher());
+                self.watched
+                    .borrow_mut()
+                    .insert(other.actor_id(), Watched::Local(registry));
 
-        if registration.is_err() {
-            self.self_ref.send_terminated(other.actor_id());
+                if registration.is_err() {
+                    self.self_ref.send_terminated(other.actor_id());
+                }
+            }
+
+            #[cfg(feature = "remote")]
+            WatchTarget::Remote(node) => {
+                self.watched.borrow_mut().insert(
+                    other.actor_id(),
+                    Watched::Remote {
+                        node,
+                        target: other.actor_id(),
+                    },
+                );
+                crate::remote::watch_remote(node, other.actor_id(), self.self_ref.make_watcher());
+            }
         }
     }
 
@@ -114,8 +139,8 @@ impl<M> ActorContext<M> {
     /// not watched, e.g. because it was never watched or its signal has already been received, has
     /// no effect.
     pub fn unwatch<N>(&self, other: &ActorRef<N>) {
-        if let Some(registry) = self.watched.borrow_mut().remove(&other.actor_id()) {
-            registry.remove(self.self_ref().actor_id());
+        if let Some(watched) = self.watched.borrow_mut().remove(&other.actor_id()) {
+            unwatch(self.self_ref().actor_id(), watched);
         }
     }
 
@@ -146,7 +171,7 @@ impl<M> ActorContext<M> {
         stopping_tx.closed().await;
     }
 
-    fn take_watched(&mut self) -> HashMap<ActorId, WatcherRegistry> {
+    fn take_watched(&mut self) -> HashMap<ActorId, Watched> {
         mem::take(self.watched.get_mut())
     }
 }
@@ -275,6 +300,16 @@ where
     actor_ref
 }
 
+enum Watched {
+    Local(WatcherRegistry),
+
+    #[cfg(feature = "remote")]
+    Remote {
+        node: crate::remote::NodeId,
+        target: ActorId,
+    },
+}
+
 /// `dyn Any` formats as "Any { .. }", hence the payload has to be downcast.
 struct PanicPayload<'a>(&'a (dyn Any + Send));
 
@@ -296,6 +331,15 @@ enum Restart {
     After(Duration),
     LimitExceeded,
     NotConfigured,
+}
+
+fn unwatch(watcher_id: ActorId, watched: Watched) {
+    match watched {
+        Watched::Local(registry) => registry.remove(watcher_id),
+
+        #[cfg(feature = "remote")]
+        Watched::Remote { node, target } => crate::remote::unwatch_remote(node, target, watcher_id),
+    }
 }
 
 /// The failure is consumed here, before the run loop's awaits, so `A::Error` need not be [Send].
@@ -366,8 +410,8 @@ where
         drop_containing_panic(actor_id, "queued message failed to drop", incoming);
     }
 
-    for registry in context.take_watched().into_values() {
-        registry.remove(actor_id);
+    for watched in context.take_watched().into_values() {
+        unwatch(actor_id, watched);
     }
 
     context.stop_children().await;
