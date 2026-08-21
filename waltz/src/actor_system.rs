@@ -75,6 +75,22 @@ pub enum Error {
     WatchRoot(#[from] oneshot::error::RecvError),
 }
 
+/// `_stopping_tx` keeps the root actor running: living in the root's own watcher registry, it is
+/// dropped only once termination has signaled the watchers.
+struct RootTerminatedSink {
+    terminated_tx: Mutex<Option<oneshot::Sender<()>>>,
+    _stopping_tx: watch::Sender<()>,
+}
+
+impl TerminatedSink for RootTerminatedSink {
+    fn send_terminated(&self, _actor_id: ActorId) -> Result<(), ActorTerminated> {
+        let terminated_tx = lock(&self.terminated_tx).take().ok_or(ActorTerminated)?;
+        let _ = terminated_tx.send(());
+
+        Ok(())
+    }
+}
+
 fn spawn_root<M, A>(root_actor: A, config: ActorConfig) -> (ActorRef<M>, oneshot::Receiver<()>)
 where
     M: Send + 'static,
@@ -99,20 +115,4 @@ where
     }
 
     (root, terminated_rx)
-}
-
-/// `_stopping_tx` keeps the root actor running: living in the root's own watcher registry, it is
-/// dropped only once termination has signaled the watchers.
-struct RootTerminatedSink {
-    terminated_tx: Mutex<Option<oneshot::Sender<()>>>,
-    _stopping_tx: watch::Sender<()>,
-}
-
-impl TerminatedSink for RootTerminatedSink {
-    fn send_terminated(&self, _actor_id: ActorId) -> Result<(), ActorTerminated> {
-        let terminated_tx = lock(&self.terminated_tx).take().ok_or(ActorTerminated)?;
-        let _ = terminated_tx.send(());
-
-        Ok(())
-    }
 }

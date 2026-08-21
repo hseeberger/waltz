@@ -275,33 +275,27 @@ where
     actor_ref
 }
 
+/// `dyn Any` formats as "Any { .. }", hence the payload has to be downcast.
+struct PanicPayload<'a>(&'a (dyn Any + Send));
+
+impl Display for PanicPayload<'_> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        let payload = self
+            .0
+            .downcast_ref::<&'static str>()
+            .copied()
+            .or_else(|| self.0.downcast_ref::<String>().map(String::as_str))
+            .unwrap_or("<non-string panic payload>");
+
+        f.write_str(payload)
+    }
+}
+
 #[derive(Debug, PartialEq, Eq)]
 enum Restart {
     After(Duration),
     LimitExceeded,
     NotConfigured,
-}
-
-fn next_restart(
-    supervision_strategy: SupervisionStrategy,
-    up_since: Option<Instant>,
-    restarts: &mut u32,
-) -> Restart {
-    let SupervisionStrategy::Restart(policy) = supervision_strategy else {
-        return Restart::NotConfigured;
-    };
-
-    if up_since.is_some_and(|up_since| up_since.elapsed() >= policy.reset_after) {
-        *restarts = 0;
-    }
-    if *restarts >= policy.max_restarts.get() {
-        return Restart::LimitExceeded;
-    }
-
-    let delay = policy.backoff.duration(*restarts);
-    *restarts += 1;
-
-    Restart::After(delay)
 }
 
 /// The failure is consumed here, before the run loop's awaits, so `A::Error` need not be [Send].
@@ -332,20 +326,26 @@ fn drop_containing_panic<T>(actor_id: ActorId, failure: &str, value: T) {
     }
 }
 
-/// `dyn Any` formats as "Any { .. }", hence the payload has to be downcast.
-struct PanicPayload<'a>(&'a (dyn Any + Send));
+fn next_restart(
+    supervision_strategy: SupervisionStrategy,
+    up_since: Option<Instant>,
+    restarts: &mut u32,
+) -> Restart {
+    let SupervisionStrategy::Restart(policy) = supervision_strategy else {
+        return Restart::NotConfigured;
+    };
 
-impl Display for PanicPayload<'_> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        let payload = self
-            .0
-            .downcast_ref::<&'static str>()
-            .copied()
-            .or_else(|| self.0.downcast_ref::<String>().map(String::as_str))
-            .unwrap_or("<non-string panic payload>");
-
-        f.write_str(payload)
+    if up_since.is_some_and(|up_since| up_since.elapsed() >= policy.reset_after) {
+        *restarts = 0;
     }
+    if *restarts >= policy.max_restarts.get() {
+        return Restart::LimitExceeded;
+    }
+
+    let delay = policy.backoff.duration(*restarts);
+    *restarts += 1;
+
+    Restart::After(delay)
 }
 
 /// The state must already have been dropped by the caller. The queued messages are moved out and
