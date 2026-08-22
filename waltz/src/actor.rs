@@ -1,4 +1,8 @@
+#[cfg(feature = "persistence")]
+use crate::persistence::{schema_version::SchemaVersion, versioned::Versioned};
 use crate::{ActorContext, ActorId};
+#[cfg(feature = "persistence")]
+use serde::{Deserialize, Deserializer, Serialize, Serializer, de};
 use std::error::Error;
 
 /// A stateful actor, handling the messages or signals it receives.
@@ -56,6 +60,34 @@ pub trait Actor {
 /// An uninhabited type for actors which don't react to messages.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Nothing {}
+
+#[cfg(feature = "persistence")]
+impl Versioned for Nothing {
+    const MANIFEST: &'static str = "nothing";
+    const VERSION: SchemaVersion = SchemaVersion::new(0);
+}
+
+#[cfg(feature = "persistence")]
+impl Serialize for Nothing {
+    fn serialize<S>(&self, _serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        match *self {}
+    }
+}
+
+#[cfg(feature = "persistence")]
+impl<'de> Deserialize<'de> for Nothing {
+    fn deserialize<D>(_deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        Err(de::Error::custom(
+            "no value of the uninhabited type Nothing",
+        ))
+    }
+}
 
 /// A message or signal received by an actor. Signals are currently limited to
 /// [Incoming::Terminated].

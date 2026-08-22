@@ -200,8 +200,10 @@ registers once as a property of the map, and each watching actor records what it
 4. On stop, run the termination sequence below.
 
 Both `init` and `receive` run under `catch_unwind`, so a panic is handled exactly like a returned
-error: logged with the actor ID and fed to supervision. The biased select ensures a stop signal
-is honored before further queued messages once the parent is stopping.
+error: logged with the actor ID and fed to supervision. An error is logged with its source as a
+separate field, so a wrapped cause stays queryable instead of being flattened into the message.
+The biased select ensures a stop signal is honored before further queued messages once the parent
+is stopping.
 
 ## Stopping and termination
 

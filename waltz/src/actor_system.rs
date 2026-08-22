@@ -65,6 +65,14 @@ where
         self.terminated_rx.await?;
         Ok(())
     }
+
+    #[cfg(feature = "persistence")]
+    pub(crate) fn from_parts(root: ActorRef<M>, terminated_rx: oneshot::Receiver<()>) -> Self {
+        Self {
+            root,
+            terminated_rx,
+        }
+    }
 }
 
 /// Errors possibly returned by [ActorSystem::terminated].
@@ -73,6 +81,27 @@ pub enum Error {
     /// Unexpected failure during watching the root actor.
     #[error("root watch failed unexpectedly")]
     WatchRoot(#[from] oneshot::error::RecvError),
+}
+
+pub(crate) fn watch_root<M>(
+    root: &ActorRef<M>,
+    stopping_tx: watch::Sender<()>,
+) -> oneshot::Receiver<()> {
+    let (terminated_tx, terminated_rx) = oneshot::channel();
+
+    let sink = Arc::new(RootTerminatedSink {
+        terminated_tx: Mutex::new(Some(terminated_tx)),
+        _stopping_tx: stopping_tx,
+    });
+    let registration = root
+        .watcher_registry()
+        .add(Watcher::new(ActorId::new(), sink.clone()));
+    if registration.is_err() {
+        sink.send_terminated(root.actor_id())
+            .expect("a sink whose registration failed was never signaled");
+    }
+
+    terminated_rx
 }
 
 /// `_stopping_tx` keeps the root actor running: living in the root's own watcher registry, it is
@@ -97,22 +126,10 @@ where
     A: Actor<Message = M> + Send + 'static,
     A::State: Send + 'static,
 {
-    let (terminated_tx, terminated_rx) = oneshot::channel();
     let (stopping_tx, stopping_rx) = watch::channel(());
 
     let root = spawn(stopping_rx, root_actor, config);
-
-    let sink = Arc::new(RootTerminatedSink {
-        terminated_tx: Mutex::new(Some(terminated_tx)),
-        _stopping_tx: stopping_tx,
-    });
-    let registration = root
-        .watcher_registry()
-        .add(Watcher::new(ActorId::new(), sink.clone()));
-    if registration.is_err() {
-        sink.send_terminated(root.actor_id())
-            .expect("a sink whose registration failed was never signaled");
-    }
+    let terminated_rx = watch_root(&root, stopping_tx);
 
     (root, terminated_rx)
 }

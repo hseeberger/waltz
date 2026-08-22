@@ -22,8 +22,18 @@
 //! ordered behind all messages the terminated actor has delivered to the watcher, hence receiving
 //! it proves that the watcher has seen every message from that actor it will ever see: each
 //! arrived before the signal or was dropped as a dead letter.
+//!
+//! With the `persistence` feature, actors can be event sourced by implementing [EventSourced] and
+//! spawning via [ActorContext::spawn_event_sourced] or [ActorSystem::event_sourced]: commands are
+//! handled against the current state, the events they cause are appended to an [EventStore] and
+//! only then applied, and the state is recovered by replay, optionally shortcut by snapshots. See
+//! `docs/persistence.md` in the repository for the guarantees. The `persistence-tests` feature
+//! adds [persistence_tests], the contract test suite any store implementation must pass.
 
 #![warn(missing_docs)]
+
+#[cfg(feature = "persistence-tests")]
+pub mod persistence_tests;
 
 mod actor;
 mod actor_config;
@@ -34,6 +44,8 @@ mod actor_system;
 mod ask;
 mod backoff;
 mod mailbox;
+#[cfg(feature = "persistence")]
+mod persistence;
 mod quota;
 mod sync;
 
@@ -46,4 +58,20 @@ pub use crate::{
     actor_system::{ActorSystem, Error},
     ask::{AskError, ReplyTo},
     backoff::{Backoff, InvalidBackoff},
+};
+
+#[cfg(feature = "persistence")]
+pub use crate::persistence::{
+    Persistence,
+    codec::{Cbor, Codec, EncodeError, Json, PayloadError},
+    effect::Effect,
+    event_sourced::EventSourced,
+    persistence_id::{InvalidPersistenceId, PersistenceId, PersistenceIdSegment},
+    schema_version::SchemaVersion,
+    seq_no::SeqNo,
+    store::{
+        AppendError, EncodedEvent, EncodedSnapshot, EventStore, NoSnapshots, SnapshotStore,
+        StoredEvent, StoredSnapshot,
+    },
+    versioned::{DecodeError, Versioned},
 };

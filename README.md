@@ -26,6 +26,9 @@ waltz is under active development: the API is unstable and the crate is not yet 
 
 - [`waltz`](waltz): the actor framework itself. See [its README](waltz/README.md) for highlights,
   getting started and the core concepts.
+- [`waltz-persistence-postgres`](waltz-persistence-postgres): PostgreSQL event and snapshot
+  stores for waltz persistence. The contract test suite any store implementation must pass ships
+  with `waltz` itself, behind the `persistence-tests` feature.
 - [`waltz-comparison`](waltz-comparison): messaging benchmarks comparing waltz against
   [kameo](https://crates.io/crates/kameo) and [ractor](https://crates.io/crates/ractor). See
   [its README](waltz-comparison/README.md) for the methodology, fairness rules and caveats and the
@@ -36,6 +39,8 @@ waltz is under active development: the API is unstable and the crate is not yet 
 How waltz works under the hood, top-down with links into the implementation:
 
 - [docs/actors.md](docs/actors.md): the core, from the `Actor` trait down to the run loop.
+- [docs/persistence.md](docs/persistence.md): event-sourced persistence, from the `EventSourced`
+  trait to recovery, fencing and schema evolution.
 
 ## Development
 
